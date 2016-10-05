@@ -1,0 +1,10 @@
+base
+dplyr
+tidyr
+ggplot2
+XML
+bitops
+RCurl
+scrapeR
+DBI
+RMySQL
