@@ -22,6 +22,7 @@ Before we get started, we need to install all the necessary software, including:
  
 -------------------------------------------------------------
 Check out the source repository and grab the initial data sets::
+
  git clone https://github.com/jamesdiao/2016-paper-ACMG-penetrance/
 
 There are 4 versions of the Markdown script: 
