@@ -1,32 +1,38 @@
 # 2016-paper-ACMG-penetrance
 
-====================================
-Running the ACMG-penetrance pipeline
-====================================
+========================
+ACMG-penetrance pipeline
+========================
 
 :Date: October 4, 2016
 
 Here are some brief notes on how to run the pipeline for our 2016 paper on the penetrance of the ACMG-56.  
-Using these commands you should be able to completely recreate the figures in the paper.
+Using these commands, you should be able to completely recreate all figures in the paper.
 
-The instructions below will reproduce all of the figures in the paper, and will then compile the paper from scratch using the new figures.
 
-1. Collect necessary data
--------------------------------------------------------------
-Check out the source repository and grab the initial data sets::
- git clone https://github.com/jamesdiao/2016-paper-ACMG-penetrance/
- 
-2. Installing necessary software
 -------------------------------------------------------------
 
 Before we get started, we need to install all the necessary software, including:
  - R
- - RStudio
- - SAMtools
-
-
-Recreating the figures
+ - RStudio (contains RMarkdown and knitr)
+ https://github.com/rstudio/rstudio
+ - SAMtools (the code uses tabix to download various ACMG-specific regions from 1000 Genomes).
+ https://github.com/samtools/samtools
+ 
+ 
 -------------------------------------------------------------
+Check out the source repository and grab the initial data sets::
+ git clone https://github.com/jamesdiao/2016-paper-ACMG-penetrance/
 
-Now go into the pipeline directory and open Master_9_30.Rmd in Rstudio. Click 'Knit', and wait for it to fully load. 
-At this point, 'Master_9_30.html' will open, containing the paper with the figures you just created.
+There are 3 versions of the Markdown script: 
+a) Master_scratch_10_5.Rmd: compiles everything from scratch (runtime: 30-50 minutes)
+b) Master_skip_download_10_5.Rmd: unzips and uses pre-downloaded VCFs from 1000 Genomes (runtime: 20-40 minutes). 
+This skips the downloading step. SAMtools and tabix are no longer required. 
+c) Master_direct_10_5.Rmd: unzips and uses a saved data frame: (runtime: 5-10 minutes)
+This skips the step where the VCFs downloaded directly from 1000 Genomes are unnested, processed, and imported. 
+d) Master_fast_10_5.Rmd: unzips cached files and uses cached data objects in the repo to recreate figures.
+This skips almost all data processing tasks and allows the figures to be generated immediately. 
+
+Open any of these .Rmd files in Rstudio. Click 'Knit', and R will compile the code as written. 
+At this point, 'Master_*_10_5.html' will open, containing the paper with the figures you just created.
+All 4 Markdown scripts should give identical results. 
