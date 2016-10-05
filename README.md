@@ -14,15 +14,16 @@ Using these commands, you should be able to completely recreate all figures in t
 
 Before we get started, we need to install all the necessary software, including:
  - R
- - RStudio (contains RMarkdown and knitr)
- https://github.com/rstudio/rstudio
- - SAMtools (the code uses tabix to download various ACMG-specific regions from 1000 Genomes).
- https://github.com/samtools/samtools
+ - RStudio (contains RMarkdown and knitr): https://github.com/rstudio/rstudio
+ - SAMtools (the code uses tabix to download various ACMG-specific regions from 1000 Genomes): https://github.com/samtools/samtools
  
  
 -------------------------------------------------------------
-Check out the source repository and grab the initial data sets:: 
+Check out the source repository, which contains our Markdown scripts and data:: 
  - git clone https://github.com/jamesdiao/2016-paper-ACMG-penetrance/
+
+
+-------------------------------------------------------------
 
 There are 4 versions of the Markdown script: 
  - **Master_scratch_10_5.Rmd**: compiles everything from scratch (runtime: 30-50 minutes)
