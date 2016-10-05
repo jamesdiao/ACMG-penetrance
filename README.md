@@ -21,9 +21,8 @@ Before we get started, we need to install all the necessary software, including:
  
  
 -------------------------------------------------------------
-Check out the source repository and grab the initial data sets::
-
- git clone https://github.com/jamesdiao/2016-paper-ACMG-penetrance/
+Check out the source repository and grab the initial data sets:: 
+ - git clone https://github.com/jamesdiao/2016-paper-ACMG-penetrance/
 
 There are 4 versions of the Markdown script: 
  - **Master_scratch_10_5.Rmd**: compiles everything from scratch (runtime: 30-50 minutes)
