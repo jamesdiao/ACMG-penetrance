@@ -26,14 +26,14 @@ Check out the source repository, which contains our Markdown scripts and data::
 -------------------------------------------------------------
 
 There are 4 versions of the Markdown script: 
- - **Master_scratch_10_5.Rmd**: compiles everything from scratch (runtime: 30-50 minutes)
- - **Master_skip_download_10_5.Rmd**: unzips and uses pre-downloaded VCFs from 1000 Genomes (runtime: 20-40 minutes). 
-This skips the downloading step. SAMtools and tabix are no longer required. 
- - **Master_direct_10_5.Rmd**: unzips and uses a saved data frame: (runtime: 5-10 minutes)
-This skips the step where the VCFs downloaded directly from 1000 Genomes are unnested, processed, and imported. 
- - **Master_fast_10_5.Rmd**: unzips cached files and uses cached data objects in the repo to recreate figures.
-This skips almost all data processing tasks and allows the figures to be generated immediately. 
+ - **ACMG_scratch_10_5.Rmd**: compiles everything from scratch (runtime: 30-50 minutes)
+ - **ACMG_load_VCF_10_5.Rmd**: uses pre-downloaded VCFs from 1000 Genomes (runtime: 20-40 minutes). 
+This skips the step where VCFs are downloaded directly from 1000 Genomes. SAMtools and tabix are no longer required. 
+ - **ACMG_load_Rdata_10_5.Rmd**: uses a saved data objects: (runtime: 5-10 minutes)
+This skips the step where the VCFs are downloaded directly from 1000 Genomes, and the step where the VCFs are unnested, processed, and imported. SAMtools and tabix are no longer required. 
+ - **ACMG_fast_10_5.Rmd**: uses cached files and uses cached data objects in the repo to recreate figures. 
+This skips almost all data processing tasks and allows the figures to be generated immediately. SAMtools and tabix are no longer required. 
 
 Open any of these .Rmd files in Rstudio. Click 'Knit', and R will compile the code as written. 
-At this point, '**Master_*_10_5.html**' will open, containing the paper with the figures you just created.
+At this point, '**ACMG_*_10_5.html**' will open, containing the paper with the figures you just created.
 All 4 Markdown scripts should give identical results. 
