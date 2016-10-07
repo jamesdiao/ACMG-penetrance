@@ -5,8 +5,10 @@ date: "October 1, 2016"
 output: html_document
 ---
 
+> Working Directory: `r getwd()`
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = F, eval = T, cache = T)
 ```
 
 ```{r packages, include = F}
@@ -17,13 +19,15 @@ suppressMessages(library(tidyr))
 suppressMessages(library(ggplot2))
 suppressMessages(library(scrapeR))
 suppressMessages(library(RMySQL))
+skip_download <- "1000G" %in% system("ls -d */",intern = T)
+skip_processing <- "ACMG_1000G.RData" %in% system("ls",intern = T)
 ```
 
 ## Download, Transform, and Load Data
 
 > 1. Access 1000 Genomes Phase 3 Populations Map from: ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel
 
-```{r population_map, echo=F, cache = T}
+```{r population_map}
 #download phase 3 populations map
 download.file(url = "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel", destfile = paste(getwd(),"phase3map.txt",sep = "/"), method = "internal")
 map <- read.table(file = paste(getwd(),"phase3map.txt",sep = "/"), header = T) %>% tbl_df
@@ -36,7 +40,7 @@ map[1:3,]
 > 2. Collect Population Data 
 (link is down; data loaded from previous files via dput - August 2016)
 
-```{r population_data, cache = T}
+```{r population_data}
 pop.data <- structure(list(Population = structure(1:26, 
   .Label = c("ACB", "ASW", "ESN", "GWD", "LWK", "MSL", "YRI", "CLM", "MXL",  
   "PEL", "PUR", "CDX", "CHB", "CHS", "JPT", "KHV", "CEU", "FIN", "GBR", 
@@ -108,56 +112,9 @@ ACMG.panel <- c("APC", "MYH11", "ACTA2", "MYLK", "TMEM43", "DSP", "PKP2", "DSG2"
 ACMG.panel
 ```
 
-> 4. Connect to UCSC Genome Browser
+> 4. Download ClinVar Interpretations
 
-```{r ucsc_gb, eval = F}
-for (con in dbListConnections(MySQL())) dbDisconnect(con)
-con <- dbConnect(MySQL(), user = 'genome',
-                 dbname = 'hg19', host = 'genome-mysql.cse.ucsc.edu',
-                 unix.sock = "/Applications/MAMP/tmp/mysql/mysql.sock")
-query <- function (input) { suppressWarnings(dbGetQuery(con, input)) }
-system("unzip 1000G.zip", intern = T)
-download_1000g <- function(gene) {
-      gene %>% paste(which(ACMG.panel==gene)) %>% paste(length(ACMG.panel), sep = "/") %>% print
-      refGene <- sprintf("select * from refGene where name2 = \"%s\" limit 20", gene) %>% query
-      UCSC <- select(refGene, name, chrom, start = txStart, end = txEnd)
-      if (nrow(UCSC) == 0) #No hit on refGene
-        print("NOT FOUND")
-      else {
-        if (nrow(UCSC) > 1) { #Multiple hits: take the widest range
-          UCSC <- UCSC[which.max(UCSC$end-UCSC$start),]
-        }
-        # gets [n] from chr[n]
-        chrom.num <- strsplit(UCSC$chrom, split = "chr")[[1]][2]
-        # different version for chromosomes X and Y
-        version <- switch(chrom.num, "X" = "shapeit2_mvncall_integrated_v1b",
-                          "Y" = "integrated_v2a", "shapeit2_mvncall_integrated_v5a")
-        command <- paste("tabix -h ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.%s.",
-                         "phase3_%s.20130502.genotypes.vcf.gz %s:%s-%s > %s_genotypes.vcf", sep = "")
-        sprintf(command, UCSC$chrom, version, chrom.num, UCSC$start, UCSC$end, gene) %>% system
-        # Checks whether the file exists
-        exists <- grepl(paste(gene,"_genotypes.vcf",sep =""), system("ls", intern = T)) %>% sum > 0
-        file.size <- strsplit(paste("stat ","_genotypes.vcf", sep = gene) %>% system(intern = T), " ")[[1]][8]
-        if (exists & file.size > 0) {
-          print("SUCCESS")
-          unlist(UCSC)
-        } else {
-          print("UNKNOWN FAILURE")
-        }
-      }
-    }
-```
-
-> 5. Download 1000 Genomes VCFs (pulled from working directory)
-
-```{r download_all, eval = F}
-download <- sapply(ACMG.panel, download_1000g)
-system("rm *.genotypes.vcf.gz.tbi; ls")
-```
-
-> 6. Download ClinVar Interpretations
-
-```{r clinvar, cache = T}
+```{r clinvar}
 clnsig_map <- c(0:7,255) %>% setNames(c("Uncertain","Not_Provided","Benign","Likely_Benign","Likely_Pathogenic",
                                         "Pathogenic","Drug_Response","Histocompatibility","Other")) #Number to interp
 input <- read.table("/Users/jamesdiao/Documents/Kohane_Lab/clinvar.vcf", header = T, 
@@ -224,11 +181,56 @@ clinvar <- clean_clinvar(input)
 
 ```
 
-> 7. Import ExAC (downloaded by hand) and 1000 Genomes 
+
+> 5. Download 1000 Genomes VCFs (pulled from working directory)
+
+```{r download_all}
+if (!skip_download & !skip_processing) {
+  system("mkdir 1000G")
+  setwd(paste(getwd(), "1000G", sep = "/"))
+  for (con in dbListConnections(MySQL())) dbDisconnect(con)
+  con <- dbConnect(MySQL(), user = 'genome',
+                   dbname = 'hg19', host = 'genome-mysql.cse.ucsc.edu',
+                   unix.sock = "/Applications/MAMP/tmp/mysql/mysql.sock")
+  query <- function (input) { suppressWarnings(dbGetQuery(con, input)) }
+  download_1000g <- function(gene) {
+        #gene %>% paste(which(ACMG.panel==gene)) %>% paste(length(ACMG.panel), sep = "/") %>% print
+        refGene <- sprintf("select * from refGene where name2 = \"%s\" limit 20", gene) %>% query
+        UCSC <- select(refGene, name, chrom, start = txStart, end = txEnd)
+        #if (nrow(UCSC) == 0) #No hit on refGene
+          #print("NOT FOUND")
+        #else {
+          if (nrow(UCSC) > 1) { #Multiple hits: take the widest range
+            UCSC <- UCSC[which.max(UCSC$end-UCSC$start),]
+          }
+          # gets [n] from chr[n]
+          chrom.num <- strsplit(UCSC$chrom, split = "chr")[[1]][2]
+          # different version for chromosomes X and Y
+          version <- switch(chrom.num, "X" = "shapeit2_mvncall_integrated_v1b",
+                            "Y" = "integrated_v2a", "shapeit2_mvncall_integrated_v5a")
+          command <- paste("tabix -h ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.%s.",
+                           "phase3_%s.20130502.genotypes.vcf.gz %s:%s-%s > %s_genotypes.vcf", sep = "")
+          sprintf(command, UCSC$chrom, version, chrom.num, UCSC$start, UCSC$end, gene) %>% system
+          # Checks whether the file exists
+          #exists <- grepl(paste(gene,"_genotypes.vcf",sep =""), system("ls", intern = T)) %>% sum > 0
+          #file.size <- strsplit(paste("stat ","_genotypes.vcf", sep = gene) %>% system(intern = T), " ")[[1]][8]
+          #if (exists & file.size > 0) {
+          #  print("SUCCESS")
+          #  unlist(UCSC)
+          #} else {
+          #  print("UNKNOWN FAILURE")
+          #}
+        #}
+    }
+  download <- sapply(ACMG.panel, download_1000g)
+  system("rm *.genotypes.vcf.gz.tbi; ls")
+}
+```
+
+> 6. Import ExAC (downloaded by hand) and 1000 Genomes 
 (supposedly downloaded just now)
 
-```{r import_all, cache = T}
-system("unzip ExAC.zip", intern = T)
+```{r import_all}
 import.file.exac <- function(gene) {
   name <- paste("ExAC",paste(gene,"exac.csv", sep = "_"), sep= "/")
   output <- read.csv(paste(getwd(),name,sep="/"), stringsAsFactors = FALSE)
@@ -289,24 +291,27 @@ import.file.1000g <- function(gene) {
 }
 
 # Import ExAC data for all ACMG
-ACMG.exac <- NULL
-for (gene in ACMG.panel) {
+#ACMG.exac <- NULL
+#for (gene in ACMG.panel) {
   #print(sprintf("[%d/%d] %s",which(gene==ACMG.panel),length(ACMG.panel),gene))
-  rbind(ACMG.exac,import.file.exac(gene))
-}
+#  rbind(ACMG.exac,import.file.exac(gene))
+#}
 #Display and remove duplicates
 #ACMG.exac[duplicated(ACMG.exac$Var_ID),1:8]
-ACMG.exac <- ACMG.exac[!duplicated(ACMG.exac$Var_ID),]
-
-# Import 1000G data for all ACMG
-ACMG.1000g <- NULL
-for (gene in ACMG.panel) {
-  #print(sprintf("[%d/%d] %s",which(gene==ACMG.panel),length(ACMG.panel),gene))
-  ACMG.1000g <- rbind(ACMG.1000g,import.file.1000g(gene))
+#ACMG.exac <- ACMG.exac[!duplicated(ACMG.exac$Var_ID),]
+if (skip_processing) {
+  load(file = "ACMG_1000G.RData")
+} else {
+  # Import 1000G data for all ACMG
+  ACMG.1000g <- NULL
+  for (gene in ACMG.panel) {
+    #print(sprintf("[%d/%d] %s",which(gene==ACMG.panel),length(ACMG.panel),gene))
+    ACMG.1000g <- rbind(ACMG.1000g,import.file.1000g(gene))
+  }
+  #Display and remove duplicates
+  #ACMG.1000g[duplicated(ACMG.1000g$Var_ID),1:8]
+  ACMG.1000g <- ACMG.1000g[!duplicated(ACMG.1000g$Var_ID),]
 }
-#Display and remove duplicates
-#ACMG.1000g[duplicated(ACMG.1000g$Var_ID),1:8]
-ACMG.1000g <- ACMG.1000g[!duplicated(ACMG.1000g$Var_ID),]
 ```
 
 ## Analysis of Data
@@ -345,7 +350,7 @@ prettyprint <- function(values, sd, title, xlabel, ylabel, ylimit) {
 
 > 1. Merge ClinVar and 1000 Genomes
 
-```{r print_merge_details, cache = T}
+```{r print_merge_details}
 inter <- intersect(clinvar$VAR_ID[clinvar$INTERP], ACMG.1000g$Var_ID)
 clinvar_merged <- clinvar[(clinvar$VAR_ID %in% inter),]
 ACMG_merged <- ACMG.1000g[ACMG.1000g$Var_ID %in% inter,]
@@ -374,7 +379,7 @@ barplot(rel_genes, las = 2, cex.names = 0.7, ylab = "No. of Pathogenic Variants"
 
 > 3. Overall Non-Reference Sites
 
-```{r all_var_plot, cache = T}
+```{r all_var_plot}
 ### Values to be plotted
 front_cols <- which(!grepl("[0-9]",colnames(ACMG.1000g)))
 sapply(pop.levels, function(pop) {
@@ -391,7 +396,7 @@ prettyprint(values, title = "ACMG-56: Mean", sd = T, ylimit = NULL,
 
 > 4. Pathogenic Non-Reference Sites
 
-```{r pathogenic_var_plot, cache = T}
+```{r pathogenic_var_plot}
 ### Values to be plotted
 front_cols <- which(!grepl("[0-9]",colnames(ACMG.1000g)))
 sub.1000g <- ACMG.1000g[ACMG.1000g$Var_ID %in% inter,]
@@ -410,7 +415,7 @@ prettyprint(values, title = "ACMG-56 Pathogenic: Mean", sd = T, ylimit = NULL,
 
 > 5. Fraction of 1000 Genomes Individuals with Pathogenic Sites
 
-```{r frac_var_plot, cache = T}
+```{r frac_var_plot}
 sapply(pop.levels, function(pop) {
   #Counts the number of non-reference sites in a gene
   keep = length(front_cols)+which(map$pop == pop)
@@ -476,7 +481,7 @@ par(mfrow=c(1,1))
 
 ## Penetrance Estimates
 
-```{r lit_af, eval = T, cache = T}
+```{r lit_af}
 #manually curated
 tags <- c("adenomatous", rep("aneurysm",3), rep("arrhythmogenic;dreifuss",5),
           rep("breast;ovarian",2),"brugada;gardner","tachycardia","dilated",
@@ -627,5 +632,11 @@ boxplot(penetrance ~ disease, penetrance_out(1), horizontal = TRUE, las = 1, ran
 abline(v=0.5, lty=2)
 ```
 
-
+``` {r cleanup, cache = F}
+dir.files <- system("ls", intern = T)
+if ("1000G" %in% dir.files)
+  system("rm -r 1000G")
+if ("ACMG_1000G.RData" %in% dir.files)
+  system("rm -r ACMG_1000G.RData")
+```
 
