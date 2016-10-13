@@ -39,6 +39,6 @@ There are four different ways to run the code: <br />
  - **Running from scratch**: This is the default method. Everything will be compiled on the spot (runtime: 30-50 minutes). <br />
  - **Running with pre-downloaded 1000 Genomes VCFs**: Unzip 1000G.zip before knitting the .Rmd, and the program will skip the step where the VCFs are downloaded directly from 1000 Genomes. SAMtools and tabix are no longer required. <br />
  - **Running with processed 1000 Genomes data frame**: Unzip ACMG_1000G.RData.zip before knitting the .Rmd, and the program will skip the step where the VCFs are downloaded from 1000 Genomes and then unnested, processed, and imported. SAMtools and tabix are no longer required. <br />
- - **Running with cached data objects**: uses cached data objects in the repo to recreate figures. This skips all data processing tasks and allows the figures to be generated immediately (identical to those in the included .html) SAMtools and tabix are no longer required. <br />
+ - **Running with cached data objects**: Unzip ACMG_9_30_cache.zip and ACMG_9_30_files.zip before knitting the .Rmd, and the program will use cached data objects to recreate the figures. This skips all data processing tasks and allows the figures to be generated immediately (identical to those in the included .html). SAMtools and tabix are no longer required. <br />
 <br />
 All 4 procedures give identical results. 
