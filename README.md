@@ -27,8 +27,7 @@ Note: SAMtools and tabix are only required for the downloading step. Using zippe
 ### CLONE REPO
 
 Check out the source repository, which contains our Markdown scripts and data: <br />
-
- - git clone https://github.com/jamesdiao/2016-paper-ACMG-penetrance/
+ - `$ git clone https://github.com/jamesdiao/2016-paper-ACMG-penetrance/`
 
 
 -------------------------------------------------------------
