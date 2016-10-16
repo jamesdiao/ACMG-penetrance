@@ -43,7 +43,6 @@ pop.table <- map[!duplicated(map$pop),] %>%
 super <- pop.table$super_pop %>% setNames(pop.table$pop)
 super.levels <- unique(pop.table$super_pop)
 pop.levels <- unique(pop.table$pop)
-print(super, quote = F) 
 #Plot distribution of ancestral backgrounds
 Population = factor(as.character(map$pop), levels = pop.levels)
 ggplot(map, aes(map$super_pop, fill = Population)) + 
@@ -76,12 +75,21 @@ scrape_ACMG <- function() {
     sapply(function(x) x[1]) %>% unique
 }
 ACMG.panel <- scrape_ACMG()
+print(ACMG.panel, quote = F)
 ```
 
 > 3. Download ClinVar VCF from: 
 ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz
 
-```{r clinvar}
+####Extract relevant entries from INFO:
+(a) CLNALLE = "Variant alleles from REF or ALT columns.  0 is REF, 1 is the first ALT allele, etc.  This is used to match alleles with other corresponding clinical (CLN) INFO tags.  A value of -1 indicates that no allele was found to match a corresponding HGVS allele name."
+(b) CLNSIG = "Variant Clinical Significance, 0 - Uncertain significance, 1 - not provided, 2 - Benign, 3 - Likely benign, 4 - Likely pathogenic, 5 - Pathogenic, 6 - drug response, 7 - histocompatibility, 255 - other"
+(c) CLNDBN = "Variant disease name"
+(d) CLNDSDBID = "Variant disease database ID" 
+(e) INTERP = Pathogenicity (likely pathogenic or pathogenic; CLNSIG = 4 or 5)
+
+
+```{r clinvar, fig.width = 10}
 #Number to interpretation
 clnsig_map <- c(0:7,255,-1) %>% setNames(c("Uncertain",
   "Not_Provided","Benign","Likely_Benign","Likely_Pathogenic",
@@ -157,6 +165,7 @@ get_clinvar <- function(clinvar_file) {
   input
 }
 clinvar <- get_clinvar(clinvar_file)
+clinvar[5,] %>% select(-CLNALLE, -INFO, -QUAL, -FILTER)
 ```
 
 > 4. Download 1000 Genomes VCFs and collect ACMG-56 regions (via tabix): ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.[chrom].phase3_[version].20130502.genotypes.vcf.gz
@@ -215,7 +224,10 @@ if (!skip_download & !skip_processing) {
   write.table(download_output, file = "download_output.txt", 
               row.names = F, col.names = T, quote = F, sep = "\t")
   system("rm *.genotypes.vcf.gz.tbi")
+} else {
+  download_output <- read.table("1000G/download_output.txt", header = T, stringsAsFactors = F)
 }
+download_output[1:5,]
 ```
 
 > 5. Import and Process ExAC and 1000 Genomes
@@ -369,8 +381,6 @@ merged_exac <- cbind(clinvar[(clinvar$VAR_ID %in% inter),] %>% arrange(VAR_ID),
   arrange(VAR_ID) %>% select(-VAR_ID)) %>% select(VAR_ID, GENE, AF_EXAC, contains("AF_"), everything())
 
 #count up all pathogenic ClinVar in ACMG regions
-if(skip_download) 
-  download_output <- read.table("1000G/download_output.txt", header = T, stringsAsFactors = F)
 is.acmg <- function(row) {
   genes <- which(row$CHROM == download_output$chrom)
   sapply(genes, function(gene) {
