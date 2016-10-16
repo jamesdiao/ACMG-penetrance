@@ -29,7 +29,7 @@ skip_processing <- "ACMG_1000G" %in% system("ls",intern = T)
 
 ## Download, Transform, and Load Data
 
-> 1. Access 1000 Genomes Phase 3 Populations Map from: ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel
+> 1. Access 1000 Genomes Phase 3 Populations Map: ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel
 
 ```{r population_map}
 #download phase 3 populations map
@@ -54,7 +54,7 @@ ggplot(map, aes(map$super_pop, fill = Population)) +
 rm(Population)
 ```
 
-> 2. Scrape ACMG gene panel from ClinVar at: 
+> 2. Scrape ACMG gene panel from ClinVar: 
 http://www.ncbi.nlm.nih.gov/clinvar/docs/acmg/
 
 ```{r scrape_acmg}
@@ -89,8 +89,9 @@ clnsig_map <- c(0:7,255,-1) %>% setNames(c("Uncertain",
   "Pathogenic","Drug_Response","Histocompatibility","Other","NA")) 
 
 if (is.null(use_clinvar)) {
+  clinvar_file <- sprintf("Temp_Files/clinvar_%s.vcf.gz", Sys.Date())
   download.file(url = "ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz", 
-                destfile = sprintf("Temp_Files/clinvar_%s.vcf.gz", Sys.Date()), method = "internal")
+                destfile = clinvar_file, method = "internal")
   system(sprintf("gunzip %s", clinvar_file))
   clinvar_file <- sprintf("Temp_Files/clinvar_%s.vcf", Sys.Date())
 } else {
@@ -159,7 +160,7 @@ get_clinvar <- function(clinvar_file) {
 clinvar <- get_clinvar(clinvar_file)
 ```
 
-> 4. Download 1000 Genomes VCFs (pulled from working directory)
+> 4. Download 1000 Genomes VCFs and collect ACMG-56 regions (via tabix): ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.[chrom].phase3_[version].20130502.genotypes.vcf.gz
 
 ```{r download_all}
 download_1000g <- function(gene, download) {
@@ -218,8 +219,7 @@ if (!skip_download & !skip_processing) {
 }
 ```
 
-> 5. Import ExAC (downloaded by hand) and 1000 Genomes 
-(supposedly downloaded just now)
+> 5. Import and Process ExAC and 1000 Genomes
 
 ```{r import_exac}
 import.file.exac <- function(gene) {
@@ -711,9 +711,5 @@ if ("1000G" %in% dir.files)
   system("rm -r 1000G")
 if ("ACMG_1000G" %in% dir.files)
   system("rm -r ACMG_1000G")
-if ("ExAC" %in% dir.files)
-  system("rm -r ExAC")
-if ("Temp_Files" %in% dir.files)
-  system("rm -r Temp_Files")
 ```
 
