@@ -11,7 +11,7 @@
 
 <meta name="author" content="James Diao" />
 
-<meta name="date" content="2016-10-15" />
+<meta name="date" content="2016-10-16" />
 
 <title>ACMG-ClinVar Markdown File</title>
 
@@ -118,7 +118,7 @@ $(document).ready(function () {
 
 <h1 class="title toc-ignore">ACMG-ClinVar Markdown File</h1>
 <h4 class="author"><em>James Diao</em></h4>
-<h4 class="date"><em>October 15, 2016</em></h4>
+<h4 class="date"><em>October 16, 2016</em></h4>
 
 </div>
 
@@ -162,6 +162,13 @@ $(document).ready(function () {
 <li>Import and Process ExAC and 1000 Genomes</li>
 </ol>
 </blockquote>
+<ol style="list-style-type: lower-alpha">
+<li>Unnest the data frames to 1 row per variant_ID key (CHROM_POSITION_REF_ALT).</li>
+<li>Remove all insertions, deletions, CNV, etc, and keep only missense variants (1 REF, 1 ALT)</li>
+<li>For ExAC: African = AFR, Latino = AMR, European (Finnish + Non-Finnish) = EUR, East.Asian = EAS, South.Asian = SAS.</li>
+<li>For 1000 Genomes: convert genomes to allele counts (0|1 becomes 1, 1|1 becomes 2. 0|2 becomes 2 counts: 0 and 1).</li>
+<li>Create other useful columns for analysis.</li>
+</ol>
 </div>
 <div id="analysis-of-data" class="section level2">
 <h2>Analysis of Data</h2>

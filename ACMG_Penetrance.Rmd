@@ -1,7 +1,7 @@
 ---
 title: "ACMG-ClinVar Markdown File"
 author: "James Diao"
-date: "October 15, 2016"
+date: "October 16, 2016"
 output: html_document
 ---
 
@@ -12,8 +12,9 @@ knitr::opts_chunk$set(echo = F, eval = T, cache = T, warning = F, message = F)
 ```
 
 ```{r packages, include = F}
-#save.image("/Users/jamesdiao/Documents/Kohane_Lab/test_10_14_2016")
-#load("/Users/jamesdiao/Documents/Kohane_Lab/test_10_14_2016")
+#save.image("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-10-16")
+#load("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-10-16")
+#setwd("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance")
 suppressMessages(library(dplyr))
 suppressMessages(library(tidyr))
 suppressMessages(library(ggplot2))
@@ -219,6 +220,12 @@ if (!skip_download & !skip_processing) {
 
 > 5. Import and Process ExAC and 1000 Genomes
 
+(a) Unnest the data frames to 1 row per variant_ID key (CHROM_POSITION_REF_ALT). 
+(b) Remove all insertions, deletions, CNV, etc, and keep only missense variants (1 REF, 1 ALT)
+(c) For ExAC: African = AFR, Latino = AMR, European (Finnish + Non-Finnish) = EUR, East.Asian = EAS, South.Asian = SAS. 
+(d) For 1000 Genomes: convert genomes to allele counts (0|1 becomes 1, 1|1 becomes 2. 0|2 becomes 2 counts: 0 and 1). 
+(e) Create other useful columns for analysis.
+
 ```{r import_exac}
 import.file.exac <- function(gene) {
   file_name <- paste("ExAC",paste(gene,"exac.csv", sep = "_"), sep= "/")
@@ -370,23 +377,19 @@ is.acmg <- function(row) {
     between(row$POS, download_output[gene,]$start, download_output[gene,]$end)
   }) %>% any
 }
-acmg_tx <- sum(apply(clinvar[clinvar$INTERP,], 1, is.acmg))
-clinvar_bp <- data.frame(Number.of.Variants = 
-  c(nrow(clinvar), sum(clinvar$INTERP), acmg_tx, 
+data.frame(Number.of.Variants = 
+  c(nrow(clinvar), sum(clinvar$INTERP), sum(apply(clinvar[clinvar$INTERP,], 1, is.acmg)), 
   nrow(merged_exac), nrow(merged_1000g)) %>% 
   setNames(c("Total ClinVar","ClinVar and Pathogenic","Patho-ClinVar and in ACMG",
              "ACMG Patho-ClinVar and in ExAC","ACMG Patho-ClinVar and in 1000G")))
-acmg_1000g_bp <- data.frame(Number.of.Variants = 
+data.frame(Number.of.Variants = 
   c(nrow(ACMG.1000g),intersect(clinvar$VAR_ID, ACMG.1000g$VAR_ID) %>% 
   length, nrow(merged_1000g)) %>% setNames(c("Total ACMG-1000G",
   "ACMG-1000G in ClinVar","ACMG-1000G in ClinVar and Pathogenic")))
-acmg_exac_bp <- data.frame(Number.of.Variants = 
+data.frame(Number.of.Variants = 
   c(nrow(ACMG.exac),intersect(clinvar$VAR_ID, ACMG.exac$VAR_ID) %>% 
   length, nrow(merged_exac)) %>% setNames(c("Total ACMG-ExAC",
   "ACMG-ExAC in ClinVar","ACMG-ExAC in ClinVar and Pathogenic")))
-clinvar_bp
-acmg_1000g_bp
-acmg_exac_bp
 par(mfrow=c(1,1))
 ```
 
@@ -614,10 +617,10 @@ cor(allele.freq[,2:ncol(allele.freq)])
 
 ```{r LP/P_freq_by_disease, fig.width = 10}
 #Plots aggregate AF by disease: P(V)
-bp <- allele.freq$COUNT_1000G %>% setNames(allele.freq$Pattern) %>% sort(decreasing = T)
+disease_af <- allele.freq$COUNT_1000G %>% setNames(allele.freq$Pattern) %>% sort(decreasing = T)
 par(mar=c(5, 18, 5, 2)) #changes plotting window to have greater left-margins
-barplot(bp, las = 2, pch = 'h', xlab ="P(having a variant)", main = "Carrier frequency by disease",
-        horiz = T, xlim = c(0,max(bp))*1.1, las = 1, cex.names = 0.8)
+barplot(disease_af, las = 2, pch = 'h', xlab ="P(having a variant)", main = "Carrier frequency by disease",
+        horiz = T, xlim = c(0,max(disease_af))*1.1, las = 1, cex.names = 0.8)
 par(mar=c(5, 4, 4, 2)+0.1) #resets margins
 ```
 
@@ -628,53 +631,51 @@ colclass <- rep("character",15)
 colclass[c(3:5,9,13)] <- "numeric"
 ACMG_Lit <- read.csv(file = "ACMG_Lit_Small.csv", header = TRUE, stringsAsFactors = F, na.strings = "\\N",
                      colClasses = colclass)
-# Map of disease name to disease tags
-disease <- ACMG_Lit$Disease
-named.freqs <- bp %>% setNames(disease)
-named.prev <- 1/ACMG_Lit$Inverse.Prevalence %>% setNames(disease)
-# Repeats allow for correct quartile calculations
-ah_low <- 0.001
-ah_high <- 0.5
-#point estimate set to geometric mean
-allelic.het <- c(ah_low, ah_low, sqrt(ah_low*ah_high) %>% round(3), ah_high, ah_high)
-# Matrix of penetrance values for allelic het range, capped at 1
-penetrance <- pmin(1, as.vector(allelic.het %o% (named.prev/named.freqs)))
-order(penetrance[c(F,F,T,F,F)], decreasing = T) -> ord
-# replicate each element n times to create labels
-data <- data.frame("penetrance" = penetrance, "disease" =
-            factor(sapply(disease, function(x) rep(x,length(allelic.het))) %>% as.vector,
-                  levels = disease[ord]) )
+rm(colclass)
+get_penetrance <- function(ah_low, ah_high){
+  # Map of disease name to disease tags
+  disease <- ACMG_Lit$Disease
+  named.freqs <- disease_af %>% setNames(disease)
+  named.prev <- 1/ACMG_Lit$Inverse.Prevalence %>% setNames(disease)
+  # Repeats allow for correct quartile calculations
+  #point estimate set to geometric mean
+  allelic.het <- c(ah_low, ah_low, sqrt(ah_low*ah_high) %>% round(3), ah_high, ah_high)
+  # Matrix of penetrance values for allelic het range, capped at 1
+  penetrance <- pmin(1, as.vector(allelic.het %o% (named.prev/named.freqs)))
+  order(penetrance[c(F,F,T,F,F)], decreasing = T) -> ord
+  # replicate each element n times to create labels
+  data.frame("penetrance" = penetrance, "disease" =
+    factor(sapply(disease, function(x) rep(x,length(allelic.het))) %>% as.vector,
+    levels = disease[ord]) )
+}
+penetrance_data <- get_penetrance(ah_low = 0.001, ah_high = 0.5)
 par(mar=c(5, 20, 5, 2))
-boxplot(penetrance ~ disease, data, horizontal = TRUE, las = 1, xlab = "Penetrance", main = "Penetrance Range Estimates for P(V|D)", cex.axis = 0.7)
+boxplot(penetrance ~ disease, penetrance_data, horizontal = TRUE, las = 1, xlab = "Penetrance", main = "Penetrance Range Estimates for P(V|D)", cex.axis = 0.7)
 abline(v=0.5, lty=2)
 ```
 
 ```{r pen_cdf} 
 par(mar=c(5, 12, 5, 2))
-data$penetrance[seq(5,150,5)] %>% ecdf %>% 
+penetrance_data$penetrance[seq(5,150,5)] %>% ecdf %>% 
   plot(ylab = "Fraction with max theoretical penetrance < P", xlab = "P", main = "Penetrance CDF")
 par(mar=c(5, 4, 4, 2)+0.1)
 ```
 
-```{r penetrance_f_prev, fig.width = 10}
-#Take transcription regions to relabel the diseases:
-ranged <- !is.na(ACMG_Lit$Inverse.P2)
-doubles <- ACMG_Lit[ranged,1:5]
-prev.range <- 1/doubles[,c(3,3,5,4,4)] %>% as.matrix
-```
 
 > 5. Empirical prevalence ranges 
 
 ``` {r prev_range, fig.wigth = 10}
+doubles <- ACMG_Lit[ranged <- !is.na(ACMG_Lit$Inverse.P2),1:5]
 par(mar=c(5, 15, 5, 2))
-temp <- doubles$Inverse.P1/doubles$Inverse.P2 %>% setNames(doubles$Disease)
-barplot(temp, horiz = T, las = 1, xlim = c(0,ceiling(max(temp)/5)*5), xlab = "Ratio of prevalence high/low", main = "Range of prevalence estimates")
+values <- doubles$Inverse.P1/doubles$Inverse.P2 %>% setNames(doubles$Disease)
+barplot(values, horiz = T, las = 1, xlim = c(0,ceiling(max(values)/5)*5), xlab = "Ratio of prevalence high/low", main = "Range of prevalence estimates")
 par(mar=c(5, 4, 4, 2)+0.1)
 ```
 
 > 6. Penetrance as a function of prevalence - P(V|D) set to 0.1
 
 ``` {r disp_prev_plot_1, fig.width = 10}
+prev.range <- 1/doubles[,c(3,3,5,4,4)] %>% as.matrix
 #Set this to 1 rather than 0.02
 penetrance_out <- function(allelic.het) {
   penetrance <- (allelic.het*prev.range/allele.freq$COUNT_1000G[ranged]) %>% 
