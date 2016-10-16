@@ -19,8 +19,6 @@ suppressMessages(library(tidyr))
 suppressMessages(library(ggplot2))
 suppressMessages(library(scrapeR))
 suppressMessages(library(RMySQL))
-unzip("ExAC.zip")
-unzip("Temp_Files.zip")
 use_clinvar <- NULL
 #use_clinvar <- "Temp_Files/clinvar_2016-08-31.vcf"
 skip_download <- "1000G" %in% system("ls",intern = T)
