@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = F, eval = T, cache = T, warning = F, message = F)
 ```{r packages, include = F}
 #save.image("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-10-16")
 #load("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-10-16")
-#setwd("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance")
+setwd("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance")
 suppressMessages(library(dplyr))
 suppressMessages(library(tidyr))
 suppressMessages(library(ggplot2))
@@ -578,7 +578,8 @@ tags <- c("adenomatous", rep("aneurysm",3), rep("arrhythmogenic;dreifuss",5),
 
 #Adapt AF_1000G and AF_EXAC
 
-getAlleleFreq <- function(input, tags, ind) {
+getAlleleFreq <- function(input, tags, ind, dataset) {
+  data <- toupper(dataset)
   temp <- sapply(unique(tags), function(tag) {
     tag.vec <- strsplit(tag,";") %>% unlist
     loc <- rep(FALSE, nrow(input))
@@ -587,22 +588,24 @@ getAlleleFreq <- function(input, tags, ind) {
     #loc = locations of all the "hits"
     hits <- sum(loc)
     if (ind) {
-      freq <- input[loc,"AF_1000G"] %>% unlist %>% as.numeric
+      freq <- input[loc,] %>% select(contains(data), contains("AF")) %>% unlist %>% as.numeric
       final <- 1-prod(1-freq[!is.na(freq)])
     } else {
       final <- mean(colSums( input[loc,(1+length(front_cols)):ncol(input)] ))/2
     }
-    c(final, hits) %>% setNames(c("AF_1000G","Hits"))
+    c(final, hits) %>% setNames(c(paste("AF",data,sep = "_"),"Hits"))
   }) %>% t %>% tbl_df
   data.frame("Tags" = unique(tags), temp)
 }
 
-freq_1000g.dep <- getAlleleFreq(merged_1000g, tags, ind = F)
-freq_1000g.indep <- getAlleleFreq(merged_1000g, tags, ind = T)
+freq_1000g.dep <- getAlleleFreq(merged_1000g, tags, ind = F, dataset = "1000G")
+freq_1000g.indep <- getAlleleFreq(merged_1000g, tags, ind = T, dataset = "1000G")
+freq_exac.indep <- getAlleleFreq(merged_exac, tags, ind = T, dataset = "EXAC")
+
 #freq_exac.sub <- getAlleleFreq(ACMG_merged,tags,dataset="ExAC")
 #freq_exac.full <- getIndAlleleFreq(data.clinvar %>% rename(DISEASE_LIST = Disease),tags,dataset="ExAC")
 allele.freq <- data.frame("Pattern" = tags %>% unique,
-                   COUNT_1000G = freq_1000g.dep$AF, INDEP_1000G = freq_1000g.indep$AF)
+                   COUNT_1000G = freq_1000g.dep$AF_1000G, INDEP_1000G = freq_1000g.indep$AF_1000G, INDEP_EXAC = freq_exac.indep$AF_EXAC)
                    #, INDEP_ExAC_SUB = freq_exac.sub$AF, INDEP_EXAC_FULL = freq_exac.full$AF)
 missing <- lapply(2:ncol(allele.freq), function(col) {
   allele.freq$Disease[allele.freq[,col]==0] %>% as.character

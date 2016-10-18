@@ -43,6 +43,7 @@ All 4 procedures give the same results, which should all be identical to `ACMG_P
 
 
 -------------------------------------------------------------
+
 ### SUPPLEMENTARY FILES 
 `Environ_2016-10-16` contains all relevant data objects retained in the environment after running all code chunks. Loading this into memory allows you to modify and execute individual code chunks in the .Rmd file. <br />
 `ACMG_Lit_Small.csv` contains all prevalence estimates for ACMG-56 related diseases from the medical literature. <br />
@@ -54,6 +55,12 @@ All 4 procedures give the same results, which should all be identical to `ACMG_P
 - `ACMG-56_Panel.txt` contains the names of the ACMG-56 genes. <br />
 - `clinvar_[date].vcf` contains the raw ClinVar VCF from the ClinVar FTP from that particular date. <br />
 - `phase3map` contains the ancestral population of each of the 2,504 individuals in 1000 Genomes. <br />
+
+-----------------------------------------------------------------
+
+### CONTACT  
+
+Please contact James Diao (james [dot] diao [at] yale [dot] edu) with any questions. 
 
 <br />
 <br />
