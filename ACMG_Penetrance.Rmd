@@ -1,8 +1,9 @@
 ---
 title: "ACMG-ClinVar Markdown File"
 author: "James Diao"
-date: "October 16, 2016"
+date: "October 21, 2016"
 output: html_document
+geometry: margin=1in
 ---
 
 > Working Directory: `r getwd()`
@@ -12,24 +13,71 @@ output: html_document
 > 2. Plot Summary Statistics Across Populations
 > 3. Compute Penetrance Estimates
 
-```{r setup, include=FALSE}
+```{r setup, include = F}
 knitr::opts_chunk$set(echo = F, eval = T, cache = T, warning = F, message = F)
+#save.image("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-10-21")
+#load("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-10-21")
+#clinvar$CLNDBN[clinvar$VAR_ID=="3_38645420_T_C"]
+#setwd("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance")
 ```
 
 ```{r packages, include = F}
-#save.image("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-10-16")
-#load("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-10-16")
-setwd("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance")
-suppressMessages(library(dplyr))
-suppressMessages(library(tidyr))
-suppressMessages(library(ggplot2))
-suppressMessages(library(scrapeR))
-suppressMessages(library(RMySQL))
-use_clinvar <- NULL
-op <- par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
+# Install and load all required packages
+pkg_list <- c("dplyr","tidyr","ggplot2","scrapeR","curl","RMySQL")
+installed <- pkg_list %in% installed.packages()[,"Package"]
+if (!all(installed))
+  install.packages(pkg_list[!installed])
+sapply(pkg_list, require, character.only = T)
+
+use_clinvar <- NULL #Specify a path to a clinvar VCF file. NULL means download new from ClinVar FTP. 
 #use_clinvar <- "Temp_Files/clinvar_2016-08-31.vcf"
+op <- par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1) #Default plotting parameters
 skip_download <- "1000G" %in% system("ls",intern = T)
 skip_processing <- "ACMG_1000G" %in% system("ls",intern = T)
+```
+
+```{r all_downloads, include = F}
+if(has_internet()) {
+  #download phase 3 populations map
+  download.file(url = "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel", destfile = "Temp_Files/phase3map.txt", method = "internal")
+  
+  #download clinvar
+  if (is.null(use_clinvar)) {
+    clinvar_file <- sprintf("Temp_Files/clinvar_%s.vcf.gz", Sys.Date())
+    download.file(url = "ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz", 
+                  destfile = clinvar_file, method = "internal")
+    system(sprintf("gunzip %s", clinvar_file))
+    clinvar_file <- sprintf("Temp_Files/clinvar_%s.vcf", Sys.Date())
+  } else {
+    clinvar_file <- use_clinvar
+  }
+  
+  ### Scraped Clinvar website for ACMG-relevant genes
+  scrape_ACMG <- function() {
+    ACMG.page <- scrape(url ="http://www.ncbi.nlm.nih.gov/clinvar/docs/acmg/")[[1]]
+    ACMG.table <- readHTMLTable(ACMG.page, stringsAsFactors = F, header = T)[[1]]
+    colnames(ACMG.table) <- c("Disease", "MedGen","Gene","Variations_Link")
+    ### Formatting correction: separating merged gene blocks
+    badrow <- which(apply(ACMG.table, 1, function(row) !any(grepl("ClinVar", row))))
+    ACMG.table[badrow,"Gene"] <- ACMG.table[badrow-1,"Gene"]
+    ### Formatting corrections: sliding
+    mismatch <- 0
+    while(any(ACMG.table[,"Gene"] == "ClinVar")) {
+      mismatch <- which(ACMG.table[,"MedGen"]!="MedGen")
+      ACMG.table[mismatch,2:3] <- ACMG.table[mismatch,1:2]
+      for (row in mismatch) { ACMG.table[row,"Disease"] <- ACMG.table[row-1, "Disease"] }
+    }
+    ACMG.table %>% select(Disease, Gene) %>% 
+      separate(col = Disease, into = c("Disease_Name","Disease_MIM"), sep = " \\(MIM ") %>%
+      separate(col = Gene, into = c("Gene_Name","Gene_MIM"), sep = " \\(MIM ") %>% 
+      mutate(Disease_MIM = strsplit(Disease_MIM, "\\)") %>% sapply("[",1)) %>%
+      mutate(Gene_MIM = strsplit(Gene_MIM, "\\)") %>% sapply("[",1))
+  }
+  ACMG.table <- scrape_ACMG()
+
+} else { 
+  skip_download <- TRUE 
+}
 ```
 
 ## Download, Transform, and Load Data
@@ -37,8 +85,6 @@ skip_processing <- "ACMG_1000G" %in% system("ls",intern = T)
 > 1. Access 1000 Genomes Phase 3 Populations Map: ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel
 
 ```{r population_map}
-#download phase 3 populations map
-download.file(url = "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel", destfile = "Temp_Files/phase3map.txt", method = "internal")
 #read the map and delete the file
 map <- read.table(file = "Temp_Files/phase3map.txt", stringsAsFactors = F, header = T) %>% as.data.frame
 #display
@@ -62,25 +108,10 @@ rm(Population)
 http://www.ncbi.nlm.nih.gov/clinvar/docs/acmg/
 
 ```{r scrape_acmg}
-### Scraped Clinvar website for ACMG-relevant genes
-scrape_ACMG <- function() {
-  ACMG.page <- scrape(url ="http://www.ncbi.nlm.nih.gov/clinvar/docs/acmg/")[[1]]
-  ACMG.table <- readHTMLTable(ACMG.page, stringsAsFactors = F, header = T)[[1]]
-  colnames(ACMG.table) <- c("Disease", "MedGen","Gene","Variations_Link")
-  ### Formatting correction: separating merged gene blocks
-  badrow <- which(apply(ACMG.table, 1, function(row) !any(grepl("ClinVar", row))))
-  ACMG.table[badrow,"Gene"] <- ACMG.table[badrow-1,"Gene"]
-  ### Formatting corrections: sliding
-  mismatch <- 0
-  while(any(ACMG.table[,"Gene"] == "ClinVar")) {
-    mismatch <- which(ACMG.table[,"MedGen"]!="MedGen")
-    ACMG.table[mismatch,2:3] <- ACMG.table[mismatch,1:2]
-    for (row in mismatch) { ACMG.table[row,"Disease"] <- ACMG.table[row-1, "Disease"] }
-  }
-  ACMG.panel <- ACMG.table[,"Gene"] %>% strsplit(" \\(") %>% 
-    sapply(function(x) x[1]) %>% unique
-}
-ACMG.panel <- scrape_ACMG()
+ACMG.panel <- ACMG.table[,"Gene_Name"] %>% unique
+cat("Processed Table from Website:")
+print(ACMG.table[10:12,], quote = F)
+cat("ACMG-56 Genes:")
 print(ACMG.panel, quote = F)
 ```
 
@@ -100,16 +131,6 @@ ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz
 clnsig_map <- c(0:7,255,-1) %>% setNames(c("Uncertain",
   "Not_Provided","Benign","Likely_Benign","Likely_Pathogenic",
   "Pathogenic","Drug_Response","Histocompatibility","Other","NA")) 
-
-if (is.null(use_clinvar)) {
-  clinvar_file <- sprintf("Temp_Files/clinvar_%s.vcf.gz", Sys.Date())
-  download.file(url = "ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz", 
-                destfile = clinvar_file, method = "internal")
-  system(sprintf("gunzip %s", clinvar_file))
-  clinvar_file <- sprintf("Temp_Files/clinvar_%s.vcf", Sys.Date())
-} else {
-  clinvar_file <- use_clinvar
-}
 
 get_clinvar <- function(clinvar_file) {
   file.by.line <- readLines(clinvar_file)
@@ -231,7 +252,10 @@ if (!skip_download & !skip_processing) {
               row.names = F, col.names = T, quote = F, sep = "\t")
   system("rm *.genotypes.vcf.gz.tbi")
 } else {
-  download_output <- read.table("1000G/download_output.txt", header = T, stringsAsFactors = F)
+  if (skip_download)
+    download_output <- read.table("1000G/download_output.txt", header = T, stringsAsFactors = F)
+  else
+    download_output <- read.table("Temp_Files/download_output.txt", header = T, stringsAsFactors = F)
 }
 download_output[1:5,]
 ```
@@ -619,8 +643,8 @@ ggplot(exac_values, aes(x = Superpopulation, y=values, fill = Superpopulation)) 
 
 > 5. Test Statistics: 
 
-F-statistic/T-statistic: probability that the different groups are sampled from distributions with the same mean.
-These plots are from (4a) - 1000 Genomes Fraction with 1+ Non-Reference Site, but can be replicated for plots 2(ab) and 3(ab) as well. 
+F-statistic/T-statistic: probability that the different groups are sampled from distributions with the same mean. <br />
+These plots are from 4(a) - 1000 Genomes Fraction with 1+ Non-Reference Site, but can be replicated for plots 2(ab) and 3(ab) as well. 
 
 ```{r test_stats}
 #Calculating test statistics (F-values)
@@ -643,7 +667,7 @@ F_values <- c(Fcalc(values$Mean)$`Pr(>F)`[1] %>% setNames("Overall"),
               sapply(super.levels, function(pop) {
                 Fcalc(values$Mean, pop)$`Pr(>F)`[1]
               }))
-par(op)
+par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
 #F_values
 ```
 
@@ -675,19 +699,24 @@ barplot(t(ranked_sum), xlab = "AF of Variants across 1000 Genomes Cohort",
         main = "Sketchy: Ethnic Breakdown of ExAC Pathogenic Variants",
         col = c("red","gold3","springgreen3","deepskyblue","violet"),
         horiz = T, las = 1, legend = super.levels, cex.names = 0.8)
-par(op)
+par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
 ```
 <br />
 
 ## Penetrance Estimates
 
-We define AF(disease) as the probability of having at least 1 variant associated with the disease. <br /> 
-This can be computed in two ways: <br />
-(a) By direct counting, from genotype data in 1000 Genomes. <br />
-(b) AF(disease) = $1-\prod_{variant}(1-AF_{variant})$, from population data in ExAC. This assumes independence between variants. <br />
+> 1. Import Literature Search Disease Prevalence Data
 
-```{r lit_af}
-#manually curated
+```{r get_lit}
+colclass <- rep("character",15)
+colclass[c(3:5,9,13)] <- "numeric"
+ACMG_Lit <- read.csv(file = "ACMG_Lit_Small.csv", header = TRUE, stringsAsFactors = F, na.strings = "\\N", colClasses = colclass)
+ACMG_Lit[5,1:15]
+```
+
+> 2. Manually curated disease keywords from CLNDBN
+
+```{r disease_tags} 
 tags <- c("adenomatous", rep("aneurysm",3), rep("arrhythmogenic;dreifuss",5),
           rep("breast;ovarian",2),"brugada;gardner","tachycardia","dilated",
           "ehler", "fabry","hypercholesterolemia",rep("hypertrophic",8), 
@@ -697,7 +726,17 @@ tags <- c("adenomatous", rep("aneurysm",3), rep("arrhythmogenic;dreifuss",5),
           "neurofibromatosis", rep("paraganglioma;pheochromocytoma",4),
           "peutz;jeghers","pilomatrixoma","Cowden;PTEN;hamartoma;Merkel",
           "retinoblastoma",rep("tuberous",2),"Hippel;Lindau","Wilms")
+print(unique(tags), quote = F)
+```
 
+> 3. Aggregate allele frequencies of all variants associated with each disease - AF(disease)
+
+We define AF(disease) as the probability of having at least 1 variant associated with the disease. <br /> 
+This can be computed in two ways: <br />
+(a) By direct counting, from genotype data in 1000 Genomes. <br />
+(b) AF(disease) = $1-\prod_{variant}(1-AF_{variant})$, from population data in ExAC. This assumes independence between variants. <br />
+
+```{r lit_af}
 getAlleleFreq <- function(input, tags, ind, dataset) {
   data <- toupper(dataset)
   temp <- sapply(unique(tags), function(tag) {
@@ -717,26 +756,16 @@ getAlleleFreq <- function(input, tags, ind, dataset) {
   }) %>% t %>% tbl_df
   data.frame("Tags" = unique(tags), temp)
 }
-
 freq_1000g.count <- getAlleleFreq(merged_1000g, tags, ind = F, dataset = "1000G")
 freq_1000g.calc <- getAlleleFreq(merged_1000g, tags, ind = T, dataset = "1000G")
 freq_exac.calc <- getAlleleFreq(merged_exac, tags, ind = T, dataset = "EXAC")
-
 allele.freq <- data.frame("Pattern" = tags %>% unique,
-                   COUNT_1000G = freq_1000g.count$AF_1000G, CALC_1000G = freq_1000g.calc$AF_1000G, CALC_EXAC = freq_exac.calc$AF_EXAC)
-missing <- lapply(2:ncol(allele.freq), function(col) {
-  allele.freq$Disease[allele.freq[,col]==0] %>% as.character
-}) %>% setNames(colnames(allele.freq)[2:ncol(allele.freq)])
-
+                   COUNT_1000G = freq_1000g.count$AF_1000G, 
+                   CALC_1000G = freq_1000g.calc$AF_1000G, 
+                   CALC_EXAC = freq_exac.calc$AF_EXAC)
 ```
 
-> 1. Manually curated disease keywords from CLNDBN
-
-```{r} 
-allele.freq[,"Pattern"]
-```
-
-> 2. Comparisons of AF(disease) by dataset or method
+> 4. Comparisons of AF(disease) by dataset or method
 
 Correlation Table: 
 ``` {r af_comparison, fig.width = 10}
@@ -753,20 +782,17 @@ ratio_diff <- function(af_1, af_2, title) {
   plot(ratio, main = title, ylab = "Ratio (larger/smaller)")
   median(ratio[is.finite(ratio)])
 }
-ratio_diff(allele.freq$CALC_1000G, allele.freq$COUNT_1000G, title = "Counting v. Calculation (1000 Genomes)") %>% invisible
-ratio_diff(allele.freq$CALC_EXAC, allele.freq$CALC_1000G, title = "1000 Genomes v. ExAC (Calculation)") %>% invisible
-par(op)
+count_calc_diff <- ratio_diff(allele.freq$CALC_1000G, allele.freq$COUNT_1000G, title = "Counting v. Calculation (1000 Genomes)")
+exac_1000g_diff <- ratio_diff(allele.freq$CALC_EXAC, allele.freq$CALC_1000G, title = "1000 Genomes v. ExAC (Calculation)") %>% invisible
+par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
 ```
 
-The median AF(disease) ratio between counting and calculation is: `r ratio_diff(allele.freq$CALC_1000G, allele.freq$COUNT_1000G, title = "Counting v. Calculation (1000 Genomes)")`. <br />
-The median AF(disease) ratio between ExAC and 1000 Genomes is: `r ratio_diff(allele.freq$CALC_EXAC, allele.freq$COUNT_1000G, title = "1000 Genomes v. ExAC")` <br />
+The median AF(disease) ratio between counting and calculation is: `r signif(count_calc_diff,4)`. <br />
+The median AF(disease) ratio between ExAC and 1000 Genomes is: `r signif(exac_1000g_diff,4)` <br />
 
-> 3. Penetrance as a function of allelic heterogeneity: P(V|D) = 0.001, 0.02, 0.5
+> 5. Penetrance as a function of allelic heterogeneity: P(V|D) = 0.001, 0.02, 0.5
 
 ```{r penetrance_f_AH, fig.width = 10}
-colclass <- rep("character",15)
-colclass[c(3:5,9,13)] <- "numeric"
-ACMG_Lit <- read.csv(file = "ACMG_Lit_Small.csv", header = TRUE, stringsAsFactors = F, na.strings = "\\N", colClasses = colclass)
 get_penetrance <- function(ah_low, ah_high, dataset) {
   # Map of disease name to disease tags
   disease <- ACMG_Lit$Disease
@@ -789,7 +815,7 @@ get_penetrance <- function(ah_low, ah_high, dataset) {
   boxplot(penetrance ~ disease, penetrance_data, horizontal = TRUE, las = 1, xlab = "Penetrance",
           main = paste(dataset,"Penetrance Estimates as a function of P(V|D)"), cex.axis = 0.7)
   abline(v=0.5, lty=2)
-  par(op)
+  par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
   penetrance_data
 }
 pen_1000g <- get_penetrance(ah_low = 0.001, ah_high = 0.5, dataset = "1000 Genomes")
@@ -801,10 +827,10 @@ pen_1000g$penetrance[c(F,F,F,F,T)] %>% ecdf %>%
        main = "Penetrance CDF", ylim = c(0,1.02), pch = 19)
 pen_exac$penetrance[c(F,F,F,F,T)] %>% ecdf %>% plot(col = 'red', add = T, pch = 1)
 legend("bottomright", legend = c("ExAC","1000G"), col = c("red","black"), pch = c(1,19))
-par(op)
+par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
 ```
 
-> 4. Penetrance as a function of prevalence (when a range is presented)
+> 6. Penetrance as a function of prevalence (when a range is presented)
 
 ``` {r prev_range, fig.wigth = 10}
 doubles <- ACMG_Lit[ranged <- !is.na(ACMG_Lit$Inverse.P2),1:5]
@@ -812,7 +838,7 @@ par(mar=c(5, 15, 5, 2))
 values <- doubles$Inverse.P1/doubles$Inverse.P2 %>% setNames(doubles$Disease)
 barplot(values %>% sort, horiz = T, las = 1, xlim = c(0,ceiling(max(values)/5)*5), 
         xlab = "Ratio of prevalence (larger/smaller)", main = "Range of prevalence estimates")
-par(op)
+par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
 ```
 
 ``` {r disp_prev_plots, fig.width = 10}
@@ -832,7 +858,7 @@ penetrance_out <- function(allelic.het) {
           xlab = "Penetrance", ylim = c(0,1),
           main = paste("Penetrance Range Estimates for Prevalence Ranges, P(V|D) =", allelic.het))
   abline(v=0.5, lty=2)
-  par(op)
+  par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
   penetrance_data
 }
 pen_ah_0.1 <- penetrance_out(0.1)
@@ -844,7 +870,7 @@ pen_ah_0.1$penetrance[c(F,F,F,F,T)] %>% ecdf %>%
        main = "Penetrance CDF", ylim = c(0,1.02), pch = 19)
 pen_ah_1.0$penetrance[c(F,F,F,F,T)] %>% ecdf %>% plot(col = 'red', add = T, pch = 1)
 legend("bottomright", legend = c("P(V|D) = 0.1","P(V|D) = 1.0"), col = c("black","red"), pch = c(19,1))
-par(op)
+par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
 ```
 
 ``` {r cleanup, cache = F}
@@ -866,5 +892,13 @@ par(mar=c(5, 18, 5, 2)) #changes plotting window to have greater left-margins
 barplot(disease_af, las = 2, pch = 'h', xlab ="P(having a variant)", main = "Carrier frequency by disease",
         horiz = T, xlim = c(0,max(disease_af))*1.1, las = 1, cex.names = 0.8)
 par(mar=c(5, 4, 4, 2)+0.1) #resets margins
+
+```
+
+```{r}
+#download.file(url = "http://www.omim.org/static/omim/data/mim2gene.txt", destfile = "Temp_Files/mim2gene.txt", method = "internal")
+#mim2gene <- read.table(file = "Temp_Files/mim2gene.txt", header = FALSE, sep = "\t", stringsAsFactors = F)
+#colnames(mim2gene) <- c("MIM_Number","MIM_Entry_Type","Entrez_Gene_ID (NCBI)","Approved_Gene_Symbol_(HGNC)","Ensembl_Gene_ID_(Ensembl)")
+#mim2gene <- mim2gene[mim2gene$`Approved_Gene_Symbol_(HGNC)`!="",]
 ```
 -->
