@@ -54,7 +54,8 @@ All 4 procedures give the same results, which should all be identical to `ACMG_P
 **Temp_Files** contains intermediary files generated while executing the script. <br />
 - `ACMG-56_Panel.txt` contains the names of the ACMG-56 genes. <br />
 - `clinvar_[date].vcf` contains the raw ClinVar VCF from the ClinVar FTP from that particular date. <br />
-- `phase3map` contains the ancestral population of each of the 2,504 individuals in 1000 Genomes. <br />
+- `phase3map.txt` contains the ancestral population of each of the 2,504 individuals in 1000 Genomes. <br />
+- `clinvar_query.txt` contains the table of results that are matched by the search query "(APC[GENE] OR MYH11[GENE]... OR WT1[GENE]) AND (clinsig_pathogenic[prop] OR clinsig_likely_pathogenic[prop])' from the ClinVar website. 
 
 -----------------------------------------------------------------
 

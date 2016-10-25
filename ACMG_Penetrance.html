@@ -11,7 +11,7 @@
 
 <meta name="author" content="James Diao" />
 
-<meta name="date" content="2016-10-21" />
+<meta name="date" content="2016-10-24" />
 
 <title>ACMG-ClinVar Markdown File</title>
 
@@ -95,6 +95,7 @@ button.code-folding-btn:focus {
 </style>
 
 
+
 <div class="container-fluid main-container">
 
 <!-- tabsets -->
@@ -118,7 +119,7 @@ $(document).ready(function () {
 
 <h1 class="title toc-ignore">ACMG-ClinVar Markdown File</h1>
 <h4 class="author"><em>James Diao</em></h4>
-<h4 class="date"><em>October 21, 2016</em></h4>
+<h4 class="date"><em>October 24, 2016</em></h4>
 
 </div>
 
@@ -256,6 +257,40 @@ $(document).ready(function () {
 ## Total ACMG-ExAC                                  58873
 ## ACMG-ExAC in ClinVar                              9347
 ## ACMG-ExAC in ClinVar and Pathogenic                964</code></pre>
+<blockquote>
+<ol start="8" style="list-style-type: decimal">
+<li>Compare with ClinVar website: merge with <code>clinvar_query.txt</code>, which all results matched by the search query: “(APC[GENE] OR MYH11[GENE]… OR WT1[GENE]) AND (clinsig_pathogenic[prop] OR clinsig_likely_pathogenic[prop])’ from the ClinVar website.</li>
+</ol>
+</blockquote>
+<p>Intermediate step: convert hg38 locations to hg19 using the Batch Coordinate Conversion tool (liftOver) from UCSC Genome Browser Utilities.</p>
+<pre><code>## Initial count: 12525 variants</code></pre>
+<pre><code>## After filtering for substitutions (N&gt;N'): 6732 variants</code></pre>
+<pre><code>## After filtering for coupling/bad-locations: 6714 variants (FINAL)</code></pre>
+<pre><code>## Overlap with ClinVar VCF: 508 variants</code></pre>
+<pre><code>## Overlap with LP/P ClinVar VCF: 504 variants</code></pre>
+<pre><code>## Overlap with LP/P ClinVar VCF AND 1000 Genomes: 9 variants</code></pre>
+<pre><code>##              VAR_ID   GENE    AF_1000G          ID              CLNSIG
+## 3    1_17355075_A_T   SDHB 0.001198080 rs190139590     4, 255, 2, 2, 2
+## 7    1_17380507_G_C   SDHB 0.013378600  rs11203289 5, 0, 1, 2, 2, 2, 2
+## 34  11_47355233_C_G MYBPC3 0.000199681 rs397516000          0, 4, 4, 4
+## 37  11_47364162_C_G MYBPC3 0.000199681 rs397515912                0, 4
+## 42  11_47374186_C_G MYBPC3 0.000199681 rs201278114           255, 0, 5
+## 49  14_23886482_G_C   MYH7 0.000199681 rs397516214                0, 4
+## 50  14_23889229_T_A   MYH7 0.000399361 rs546586969                4, 0
+## 52  14_23893148_C_G   MYH7 0.000199681  rs45496496          0, 4, 0, 0
+## 145 X_100652891_C_G    GLA 0.000529801 rs782449839                6, 4</code></pre>
+<pre><code>## Overlap with LP/P ClinVar VCF AND ExAC: 48 variants</code></pre>
+<pre><code>##              VAR_ID   GENE   AF_EXAC          ID              CLNSIG
+## 24   1_17355075_A_T   SDHB 3.083e-03 rs190139590     4, 255, 2, 2, 2
+## 34   1_17380507_G_C   SDHB 4.360e-03  rs11203289 5, 0, 1, 2, 2, 2, 2
+## 93   1_45798840_A_T  MUTYH 8.238e-06 rs730881832                5, 5
+## 198 11_47354740_C_G MYBPC3 3.052e-05 rs373746463       5, 5, 5, 5, 4
+## 205 11_47355233_C_G MYBPC3 2.520e-05 rs397516000          0, 4, 4, 4
+## 222 11_47362758_C_G MYBPC3 5.827e-05 rs371564200                0, 4
+## 226 11_47364125_T_A MYBPC3 1.347e-05 rs397515916        4, 255, 4, 5
+## 227 11_47364129_C_G MYBPC3 2.485e-05 rs121909374   255, 5, 255, 5, 5
+## 228 11_47364162_C_G MYBPC3 1.732e-05 rs397515912                0, 4
+## 237 11_47365119_G_C MYBPC3 8.857e-05  rs11570077                   4</code></pre>
 <p><br /> <br /></p>
 </div>
 <div id="plot-summary-statistics-across-populations" class="section level2">
@@ -454,6 +489,7 @@ $(document).ready(function () {
 $(document).ready(function () {
   $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
 });
+
 
 </script>
 
