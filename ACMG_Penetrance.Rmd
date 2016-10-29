@@ -1,17 +1,16 @@
 ---
-title: "ACMG-ClinVar Markdown File"
-author: "James Diao"
-date: "October 25, 2016"
-output: pdf_document
+title: "ACMG-ClinVar Penetrance RMarkdown"
+author: "James Diao, under the supervision of Arjun Manrai"
+date: "October 28, 2016"
+output: 
+  html_document: 
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
 geometry: margin=1in
 ---
 
-Working Directory: `r getwd()`
-
-## Steps
-1. Download, Transform, and Load Data
-2. Plot Summary Statistics Across Populations
-3. Compute Penetrance Estimates  
+**Working Directory**: `r getwd()`
 
 ```{r setup, include = F}
 knitr::opts_chunk$set(echo = F, eval = T, cache = T, warning = F, message = F)
@@ -19,18 +18,19 @@ knitr::opts_chunk$set(echo = F, eval = T, cache = T, warning = F, message = F)
 #load("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-10-25")
 setwd("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance")
 #clinvar[clinvar$VAR_ID=="3_38645420_T_C",]
+#http://gnomad.broadinstitute.org/gene/ENSG00000134571
 ```
 
 ```{r packages, include = F, cache = F}
 # Install and load all required packages
-pkg_list <- c("tidyverse","scrapeR","curl","RMySQL", "knitr","pander")
+pkg_list <- c("scrapeR","RMySQL", "knitr","pander","ggplot2","tibble","curl","tidyr","dplyr")
 installed <- pkg_list %in% installed.packages()[,"Package"]
 if (!all(installed))
   install.packages(pkg_list[!installed])
 sapply(pkg_list, require, character.only = T)
 
 use_clinvar <- NULL #Specify a path to a clinvar VCF file. NULL means download new from ClinVar FTP. 
-#use_clinvar <- "Temp_Files/clinvar_2016-08-31.vcf"
+#use_clinvar <- "Supplementary_Files/clinvar_2016-10-04.vcf"
 op <- par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1) #Default plotting parameters
 panderOptions("table.alignment.rownames","left")
 panderOptions('table.alignment.default', function(df) ifelse(sapply(df, is.numeric), 'right', 'left'))
@@ -42,14 +42,14 @@ skip_download <- "1000G" %in% system("ls",intern = T)
 ```{r all_downloads, include = F}
 if(has_internet()) {
   #download phase 3 populations map
-  download.file(url = "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel", destfile = "Temp_Files/phase3map.txt", method = "internal")
+  download.file(url = "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel", destfile = "Supplementary_Files/phase3map.txt", method = "internal")
   #download clinvar
   if (is.null(use_clinvar)) {
-    clinvar_file <- sprintf("Temp_Files/clinvar_%s.vcf.gz", Sys.Date())
+    clinvar_file <- sprintf("Supplementary_Files/clinvar_%s.vcf.gz", Sys.Date())
     download.file(url = "ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz", 
                   destfile = clinvar_file, method = "internal")
     system(sprintf("gunzip %s", clinvar_file))
-    clinvar_file <- sprintf("Temp_Files/clinvar_%s.vcf", Sys.Date())
+    clinvar_file <- sprintf("Supplementary_Files/clinvar_%s.vcf", Sys.Date())
   } else {
     clinvar_file <- use_clinvar
   }
@@ -80,9 +80,10 @@ if(has_internet()) {
 }
 ```
 
-## Download, Transform, and Load Data
+<!--\newpage-->
+# Download, Transform, and Load Data
 
-#### 1. Scrape ACMG gene panel from ClinVar
+## Collect ACMG Gene Panel
 http://www.ncbi.nlm.nih.gov/clinvar/docs/acmg/
 
 ```{r scrape_acmg}
@@ -93,9 +94,9 @@ cat("ACMG-56 Genes:")
 print(ACMG.panel, quote = F)
 ```
 <br />
-\newpage
+<!--\newpage-->
 
-#### 2. Download ClinVar VCF
+## Download ClinVar VCF
 
 ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz  
 <br /> <br /> 
@@ -114,7 +115,7 @@ clnsig_map <- c(0:7,255,-1) %>% setNames(c("Uncertain",
 get_clinvar <- function(clinvar_file) {
   file.by.line <- readLines(clinvar_file)
   file_date <- as.Date(strsplit(file.by.line[2],"=")[[1]][2], "%Y%m%d")
-  system(sprintf("mv %s Temp_Files/clinvar_%s.vcf", clinvar_file, file_date))
+  system(sprintf("mv %s Supplementary_Files/clinvar_%s.vcf", clinvar_file, file_date))
   clean.lines <- file.by.line[!grepl("##.*", file.by.line)] #Remove ## comments
   clean.lines[1] <- sub('.', '', clean.lines[1]) #Remove # from header
   input <- read.table(text = paste(clean.lines, collapse = "\n"), header = T, stringsAsFactors = F, 
@@ -171,12 +172,12 @@ get_clinvar <- function(clinvar_file) {
   input
 }
 clinvar <- get_clinvar(clinvar_file)
-cat(sprintf("Processed ClinVar data frame %s x %s (selected rows and columns):", nrow(clinvar), ncol(clinvar)))
+cat(sprintf("Processed ClinVar data frame %s x %s (selected rows/columns):", nrow(clinvar), ncol(clinvar)))
 clinvar[3:5,] %>% select(-CLNALLE, -INFO, -QUAL, -FILTER) %>% remove_rownames %>% pander
 ```
 <br />
 
-#### 3. Download 1000 Genomes VCFs and collect ACMG-56 regions (via tabix)
+## Download 1000 Genomes VCFs
 ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.[chrom].phase3_[version].20130502.genotypes.vcf.gz  
 <br /> <br />
 Downloaded 1000 Genomes VCFs are saved in: `r getwd()`/1000G/
@@ -238,22 +239,22 @@ if (!skip_download & !skip_processing) {
   if (skip_download)
     download_output <- read.table("1000G/download_output.txt", header = T, stringsAsFactors = F)
   else
-    download_output <- read.table("Temp_Files/download_output.txt", header = T, stringsAsFactors = F)
+    download_output <- read.table("Supplementary_Files/download_output.txt", header = T, stringsAsFactors = F)
 }
 cat(sprintf("Download report: region and successes: %s x %s (selected rows):", nrow(download_output), ncol(download_output)))
 download_output[1:5,] %>% pander
-cat("File saved as download_output.txt in Temp_Files")
+cat("File saved as download_output.txt in Supplementary_Files")
 ```
 <br />
 
-\newpage
-#### 4. Access 1000 Genomes Phase 3 Populations Map
+<!--\newpage-->
+## Collect 1000 Genomes Phase 3 Populations Map
 This will allow us to assign genotypes from the 1000 Genomes VCF to ancestral groups.  
 From: ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel  
 
 ```{r population_map}
 #read the map and delete the file
-map <- read.table(file = "Temp_Files/phase3map.txt", stringsAsFactors = F, header = T) %>% as.data.frame
+map <- read.table(file = "Supplementary_Files/phase3map.txt", stringsAsFactors = F, header = T) %>% as.data.frame
 #display
 cat("Phase 3 Populations Map Table: 2504 x 4 (selected rows)")
 map[sample(nrow(map),10),] %>% arrange(super_pop) %>% remove_rownames %>% pander
@@ -274,8 +275,8 @@ rm(Population)
 ```
 <br />
 
-\newpage
-#### 5. Import and Process 1000 Genomes VCFs
+<!--\newpage-->
+## Import and Process 1000 Genomes VCFs
 
 (a) Unnest the data frames to 1 row per variant_ID key (CHROM_POSITION_REF_ALT). 
 (b) Remove all insertions, deletions, CNV, etc, and keep only missense variants (1 REF, 1 ALT)
@@ -345,12 +346,12 @@ if (skip_processing) {
   #Display and remove duplicates
   ACMG.1000g <- ACMG.1000g[!duplicated(ACMG.1000g$VAR_ID),]
 }
-cat(sprintf("Processed 1000 Genomes VCFs: %s x %s (selected rows and columns):", nrow(ACMG.1000g), ncol(ACMG.1000g)))
+cat(sprintf("Processed 1000 Genomes VCFs: %s x %s (selected rows/columns):", nrow(ACMG.1000g), ncol(ACMG.1000g)))
 ACMG.1000g[1:5,1:18] %>% select(-INFO, -QUAL, -FILTER, -FORMAT) %>% pander
 ```
 <br />
 
-#### 6. Import and Process ExAC VCFs
+## Import and Process ExAC VCFs
 
 (a) Unnest the data frames to 1 row per variant_ID key (CHROM_POSITION_REF_ALT). 
 (b) Remove all insertions, deletions, CNV, etc, and keep only missense variants (1 REF, 1 ALT)
@@ -385,13 +386,13 @@ for (gene in ACMG.panel) {
 #Display and remove duplicates
 #ACMG.exac[duplicated(ACMG.exac$VAR_ID),1:8]
 ACMG.exac <- ACMG.exac[!duplicated(ACMG.exac$VAR_ID),]
-cat(sprintf("Processed ExAC VCFs: %s x %s (selected rows and columns):", nrow(ACMG.exac), ncol(ACMG.exac)))
+cat(sprintf("Processed ExAC VCFs: %s x %s (selected rows/columns):", nrow(ACMG.exac), ncol(ACMG.exac)))
 ACMG.exac[1:5,1:13] %>% pander
 ```
 <br />
 
-\newpage
-#### 7. Merge ClinVar with 1000 Genomes and ExAC (keep pathogenic variants)
+<!--\newpage-->
+## Merge ClinVar with 1000 Genomes and ExAC
 
 ```{r print_merge_details}
 merge_clinvar_1000g <- function() {
@@ -439,16 +440,16 @@ data.frame(Subset_ExAC = c("Total ExAC & ACMG","ExAC & ACMG & ClinVar","ExAC & A
 ```
 <br />
 
-\newpage
-#### 8. Compare with ClinVar browser query results
-`clinvar_query.txt` contains all results matched by the search query: "(APC[GENE] OR MYH11[GENE]... OR WT1[GENE]) AND (clinsig_pathogenic[prop] OR clinsig_likely_pathogenic[prop])" from the ClinVar website. The exact query is saved in /Temp_Files/query_input.txt  
+<!--\newpage-->
+## Comparison with ClinVar Browser Query Results
+`clinvar_query.txt` contains all results matched by the search query: "(APC[GENE] OR MYH11[GENE]... OR WT1[GENE]) AND (clinsig_pathogenic[prop] OR clinsig_likely_pathogenic[prop])" from the ClinVar website. The exact query is saved in /Supplementary_Files/query_input.txt  
 <br /> <br />
 This presents another way of collecting data from ClinVar. 
 
 Intermediate step: convert hg38 locations to hg19 using the Batch Coordinate Conversion tool (liftOver) from UCSC Genome Browser Utilities. 
 
 ```{r clinvar_query}
-clinvar_query <- read.table(file = "Temp_Files/clinvar_query_2016-10-25.txt", sep = "\t", header = F, skip = 1, stringsAsFactors = F)
+clinvar_query <- read.table(file = "Supplementary_Files/clinvar_query_2016-10-25.txt", sep = "\t", header = F, skip = 1, stringsAsFactors = F)
 colnames(clinvar_query) <- c("Name", "Gene(s)", "Condition(s)", "Frequency", "Clinical significance (Last reviewed)","Review status", "Chromosome","Location","Assembly","VariationID","AlleleID(s)")
 #cat(sprintf("Initial count: %s variants", nrow(clinvar_query)))
 clinvar_count <- rep(0,7)
@@ -468,10 +469,10 @@ clinvar_query <- clinvar_query %>%
 #liftOver from http://hgdownload.soe.ucsc.edu/admin/exe/macOSX.x86_64/liftOverMerge
 #input data from http://hgdownload.soe.ucsc.edu/goldenPath/hg38/liftOver/
 #paste(paste0("chr",clinvar_query$Chromosome), clinvar_query$Location, clinvar_query$Location+1) %>%
-#  write.table(file = "Temp_Files/cvquery_location.bed", quote = F, row.names = F, col.names = F)
+#  write.table(file = "Supplementary_Files/cvquery_location.bed", quote = F, row.names = F, col.names = F)
 #system("chmod +x ../Tools/liftOver")
-#system("../Tools/liftOver Temp_Files/cvquery_hg38.bed ../Tools/hg38ToHg19.over.chain.gz Temp_Files/cvquery_hg19.bed err.log")
-cvquery_hg19 <- read.table(file = "Temp_Files/cvquery_hg19.bed", sep = "\t", header = F, stringsAsFactors = F)
+#system("../Tools/liftOver Supplementary_Files/cvquery_hg38.bed ../Tools/hg38ToHg19.over.chain.gz Supplementary_Files/cvquery_hg19.bed err.log")
+cvquery_hg19 <- read.table(file = "Supplementary_Files/cvquery_hg19.bed", sep = "\t", header = F, stringsAsFactors = F)
 clinvar_query <- clinvar_query %>%
   mutate(Location = cvquery_hg19$V2) %>%
   unite(col = "VAR_ID", Chromosome, Location, Reference, Alternate, sep = "_", remove = F)
@@ -496,12 +497,13 @@ filter(clinvar_query,
   mutate(Frequency = Frequency %>% strsplit(", ") %>% sapply("[",1) ) %>% 
   mutate(`Gene(s)` = `Gene(s)` %>% strsplit("|", fixed = T) %>% sapply("[",1) ) %>% pander
 cat("Breakdown of ClinVar Query Results Table: ")
-data.frame(Subset = c("Initial Count","Filter Substitutions (N>N')","Filter Coupling/Bad-Locations","In ClinVar VCF","In LP/P-ClinVar VCF","In LP/P-ClinVar VCF & ACMG & ExAC","In LP/P-ClinVar VCF & ACMG & 1000 Genomes", "In LP/P-ClinVar VCF & ACMG & ExAC & 1000 Genomes"), Number_of_Variants = clinvar_count) %>% pander
+data.frame(Subset = c("Initial Count","Filter Substitutions (N>N')","Filter Coupling/Bad-Locations","In ClinVar VCF","In LP/P-ClinVar VCF","^ & ACMG & ExAC","^ & ACMG & 1000 Genomes", "^ & ACMG & ExAC & 1000 Genomes"), Number_of_Variants = clinvar_count) %>% pander
+cat("Note the 12-fold reduction after merging the online query results with the VCF.")
 ```
 <br /> <br /> 
 
-\newpage
-## Plot Summary Statistics Across Populations
+<!--\newpage-->
+# Plot Summary Statistics Across Populations
 
 ```{r prettyprint} 
 ### For plotting population level data:
@@ -536,39 +538,21 @@ prettyprint <- function(values, sd, title, xlabel, ylabel, ylimit) {
 ```
 <br />
 
-#### 1. Gene distribution of ClinVar Pathogenic Variants
+## Overall Non-Reference Sites
 
-```{r gene_distribution, fig.width = 10}
-plot_gene_distrib <- function() {
-  x_1000g <- table(merged_1000g$GENE)
-  x_exac <- table(merged_exac$GENE)
-  gene_ord <- order(x_exac+x_1000g, decreasing = T)
-  plot(x_exac[gene_ord], type = 'o', las = 2, ylab = "No. of Pathogenic Variants",
-       main = "Gene distribution of ClinVar Pathogenic Variants")
-  lines(x_1000g[gene_ord], type = 'o', col = 'red')
-  legend("topright", legend = c("ExAC","1000 Genomes"), fill = c("Black", "Red"), col = c("Black","Red"))
-}
-plot_gene_distrib()
-
-```
-<br />
-
-\newpage
-#### 2. Overall Non-Reference Sites
-
-##### For 1000 Genomes
+#### For 1000 Genomes
 Each individual has $n$ non-reference sites, which can be found by counting. The mean number is computed for each population.
 
 Ex: the genotype of 3 variants in 3 people looks like this: 
 ```{r count_example}
 example <- ACMG.1000g[c(88,95,96),14:16]
 rownames(example) <- c("Variant 1", "Variant 2","Variant 3")
-example
+example %>% pander
 ```
 
 Count the number of non-reference sites per individual:
 ```{r} 
-colSums(example>0)
+colSums(example>0) %>% pander
 cat(sprintf("Mean = %s", mean(colSums(example>0)) %>% signif(3)))
 ```
 
@@ -589,8 +573,8 @@ prettyprint(values, title = "ACMG-56: Mean in 1000 Genomes", sd = T, ylimit = NU
 <br />
 Note: the error bars denote standard deviation, not standard error.  
 
-\newpage
-##### For ExAC
+<!--\newpage-->
+#### For ExAC
 
 The mean number of non-reference sites is $E(V)$, where $V = \sum_{i=1}^n v_i$ is the number of non-reference sites at all variant positions $v_1$ through $v_n$.  
 
@@ -600,27 +584,24 @@ If the two alleles are independent, $P(v_{i,a} \cup v_{i,b})$ = $1-(1-P(v_{i,a})
 
 If all variants are independent, $E(V) = \sum_{i=1}^n 1-(1-AF(v_i))^2$ for any set of allele frequencies.  
 
-Note: this is not true in some rare cases, e.g., when multiple variants share the same position.  
-
-Since we have the allele frequencies for each superpopulation, we can estimate $E(V)$ for each superpopulation.  
 <br />
 
 Ex: the allele frequencies of 3 variants across the 5 superpopulations looks like this: 
 ```{r calc_example}
-example <- rbind(c(0.1,0.2,0,0,0.3),c(0.2,0,0.3,0,0.1),c(0,0,0.1,0.1,0.2))
-rownames(example) <- c("Variant 1", "Variant 2","Variant 3")
-colnames(example) <- sprintf("AF_EXAC_%s",super.levels)
-example
+example <- rbind(c(0.1,0.2,0,0,0.3),c(0.2,0,0.3,0,0.1)) %>% as.data.frame
+rownames(example) <- c("Variant 1", "Variant 2")
+colnames(example) <- super.levels
+example %>% pander
 ```
 
 The probability of having at least 1 non-reference site at each variant - (0|1) (1|0) or (1|1) is given by $1-(1-AF)^2$. Note that this is approximately $2*AF$ when $AF$ is small:
-```{r} 
-1-(1-example)^2
+```{r, cache = F} 
+as.data.frame(1-(1-example)^2) %>% pander
 ```
 
 By linearity of expectation, the expected (mean) number of non-reference sites is $\sum E(V_i) = \sum (columns)$. 
-```{r} 
-colSums(1-(1-example)^2)
+```{r, cache = F} 
+colSums(1-(1-example)^2) %>% pander
 ```
 
 
@@ -637,13 +618,13 @@ ggplot(exac_values, aes(x = Superpopulation, y=values, fill = Superpopulation)) 
 ```
 <br />
 
-\newpage
-#### 3. Pathogenic Non-Reference Sites
+<!--\newpage-->
+## Pathogenic Non-Reference Sites
 
-##### For 1000 Genomes and ExAC
+#### For 1000 Genomes and ExAC
 This is the same procedure as above, but performed only on the subset of variants that are pathogenic. 
 
-```{r pathogenic_var_plot}
+```{r pathogenic_var_plot, fig.height = 4}
 front_cols <- 1:(grep("HG00096",colnames(merged_1000g))-1)
 ### 1000 Genomes
 sapply(pop.levels, function(pop) {
@@ -669,21 +650,21 @@ ggplot(exac_values, aes(x = Superpopulation, y=values, fill = Superpopulation)) 
 ```
 <br />
 
-#### 4. Fraction of 1000 Genomes Individuals with Pathogenic Sites
+## Fraction of Individuals with Pathogenic Sites
 
-##### For 1000 Genomes
+#### For 1000 Genomes
 We can count up the fraction of individuals with 1+ non-reference site(s) in each population. This is the fraction of individuals who would receive a positive genetic test result in at least 1 of the ACMG-56 genes.
 
 Ex: the genotype of 3 variants in 3 people looks like this: 
 ```{r count_example_2}
 example <- ACMG.1000g[c(88,95,96),14:16]
 rownames(example) <- c("Variant 1", "Variant 2","Variant 3")
-example
+example %>% pander
 ```
 
 Count each individual as having a non-reference site (1) or having only reference sites (0):
 ```{r} 
-1*(colSums(example>0)>0)
+(1*(colSums(example>0)>0)) %>% pander
 cat(sprintf("Mean = %s", mean(1*(colSums(example>0)>0)) %>% signif(3)))
 ```
 
@@ -703,7 +684,8 @@ prettyprint(values, title = "ACMG-56 Pathogenic: Fraction", sd = F, ylimit = NUL
             xlabel = "Population", ylabel = "Fraction with at least 1 non-reference site")
 ```
 
-##### For ExAC
+<!--\newpage-->
+#### For ExAC
 The probability of having at least 1 non-reference site is $P(X)$, where $X$ indicates a non-reference site at any variant position $v_1$ through $v_n$. <br />
 
 Recall that $P(v_i) = P(v_{i,a} \cup v_{i,b}) = 1-(1-AF(v))^2$ when alleles are independent. <br />
@@ -712,24 +694,24 @@ If all alleles are independent, $P(X) = P(\bigcup_{i=1}^n v_i) = 1-\prod_{i=1}^n
 
 Ex: the allele frequencies of 3 variants across the 5 superpopulations looks like this: 
 ```{r calc_example_2}
-example <- rbind(c(0.1,0.2,0,0,0.3),c(0.2,0,0.3,0,0.1),c(0,0,0.1,0.1,0.2))
-rownames(example) <- c("Variant 1", "Variant 2","Variant 3")
-colnames(example) <- sprintf("AF_EXAC_%s",super.levels)
-example
+example <- rbind(c(0.1,0.2,0,0,0.3),c(0.2,0,0.3,0,0.1)) %>% as.data.frame
+rownames(example) <- c("Variant 1", "Variant 2")
+colnames(example) <- super.levels
+example %>% pander
 ```
 
 The probability of having at least 1 non-reference site at each variant - (0|1) (1|0) or (1|1) is given by $1-(1-AF)^2$. <br />
 Note that this is approximately $2*AF$ when $AF$ is small:
 ```{r} 
-1-(1-example)^2
+as.data.frame(1-(1-example)^2) %>% pander
 ```
 
 The expected (mean) number of non-reference sites is given by $1-\prod (1-AF)^2$. 
 ```{r} 
-apply(example, 2, function(x) 1-prod((1-x)^2))
+apply(example, 2, function(x) 1-prod((1-x)^2)) %>% pander
 ```
 
-``` {r frac_var_exac}
+``` {r frac_var_exac, fig.height = 4}
 ### ExAC
 #Each element is the probability that at least 1 of the 2 alleles are non-reference.
 exac_prob <- (1-(1-merged_exac[,sprintf("AF_EXAC_%s",super.levels)])^2)
@@ -742,8 +724,9 @@ ggplot(exac_values, aes(x = Superpopulation, y=values, fill = Superpopulation)) 
 ```
 <br />
 
-\newpage
-#### 5. Test Statistics
+<!--\newpage-->
+
+## Test Statistics for Ancestral Differences
 
 F-statistic/T-statistic: probability that the different groups are sampled from distributions with the same mean. <br />
 These plots are from 4(a) - 1000 Genomes Fraction with 1+ Non-Reference Site, but can be replicated for plots 2(ab) and 3(ab) as well. 
@@ -774,9 +757,10 @@ par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
 ```
 <br />
 
-#### 6. Ethnic Breakdown of 1000 Genomes Pathogenic Variants
+<!--\newpage-->
+## Common Pathogenic Variants by Ancestry
 
-```{r variants_by_ethnicity} 
+```{r variants_by_ethnicity, fig.height = 4} 
 ### 1000 Genomes
 front_cols <- 1:(grep("HG00096",colnames(merged_1000g))-1)
 sapply(merged_1000g$VAR_ID, function(variant) {
@@ -788,7 +772,7 @@ ord <- order(apply(temp,1,var), decreasing = T)
 ranked_var <- temp[ord[1:8],]
 par(mar=c(5, 8, 5, 2)) #changes plotting window to have greater left-margins
 barplot(t(ranked_var), xlab = "Proportion of Variants across 1000 Genomes Cohort",
-        main = "Sketchy: Ethnic Breakdown of 1000 Genomes Pathogenic Variants",
+        main = "In 1000 Genomes",
         col = c("red","gold3","springgreen3","deepskyblue","violet"),
         horiz = T, las = 1, legend = super.levels, cex.names = 0.8)
 
@@ -799,29 +783,292 @@ ranked_sum <- merged_exac[ord[1:8], sprintf("AF_EXAC_%s",super.levels)]
 rownames(ranked_sum) <- merged_exac$VAR_ID[ord[1:8]]
 par(mar=c(5, 8, 5, 2)) #changes plotting window to have greater left-margins
 barplot(t(ranked_sum), xlab = "AF of Variants across 1000 Genomes Cohort",
-        main = "Sketchy: Ethnic Breakdown of ExAC Pathogenic Variants",
+        main = "In ExAC",
         col = c("red","gold3","springgreen3","deepskyblue","violet"),
         horiz = T, las = 1, legend = super.levels, cex.names = 0.8)
 par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
 ```
 <br />
 
-## Penetrance Estimates
+# Penetrance Estimates
 <br />
 
-#### 1. Import Literature Search Disease Prevalence Data
+## Import Literature-Based Disease Prevalence Data
 
 ```{r get_lit}
-colclass <- rep("character",15)
-colclass[c(3:5,9,13)] <- "numeric"
-ACMG_Lit <- read.csv(file = "ACMG_Lit_Small.csv", header = TRUE, stringsAsFactors = F, na.strings = "\\N", colClasses = colclass)
-ACMG_Lit[5,1:15]
+colclass <- rep("character",16)
+colclass[c(5:6,10,14)] <- "numeric"
+ACMG_Lit <- read.csv(file = "Literature_Prevalence_Estimates.csv", header = TRUE, stringsAsFactors = F, na.strings = "\\N", colClasses = colclass)
+combined <- (ACMG_Lit$Inverse.Prevalence.1+ACMG_Lit$Inverse.Prevalence.2)/2
+mean.prev <- ACMG_Lit$Inverse.Prevalence.1
+mean.prev[!is.na(combined)] <- combined[!is.na(combined)]
+cat(sprintf("Table of Literature-Based Estimates of Disease Prevalence %s x %s (selected rows/columns):", nrow(ACMG_Lit), ncol(ACMG_Lit)))
+ACMG_Lit[c(4,5,8,14),] %>% remove_rownames %>% 
+  select(Gene, Disease, Disease_MIM, Tags, Inverse.Prevalence.1, Inverse.Prevalence.2, year,first.author,citations) %>% pander
 ```
 <br />
 
-#### 2. Manually curated disease keywords from CLNDBN
+## Collect and Aggregate Allele Frequencies at the Disease-Level
 
-```{r disease_tags} 
+We define AF(disease) as the probability of having at least 1 variant associated with the disease.  
+There are three ways of identifying which disease a variant belongs to:  
+(1) By gene(s)  
+(2) By disease MIM(s)  
+(3) By keyword(s)  
+The frequencies across the relevant variants can be aggregated in two ways:  
+(1) By direct counting, from genotype data in 1000 Genomes.  
+(2) AF(disease) = $1-\prod_{variant}(1-AF_{variant})$, from population data in ExAC (assumes independence).
+<br />  
+
+```{r lit_af}
+getAlleleFreq <- function(input, ind, method, dataset) {
+  if (method == "MIM") {
+    search_list <- ACMG_Lit$Disease_MIM
+    search_in <- "CLNDSDBID"
+  }
+  if (method == "Tags") {
+    search_list <- ACMG_Lit$Tags
+    search_in <- "CLNDBN"
+  }
+  if (method == "Gene") {
+    search_list <- ACMG_Lit$Gene
+    search_in <- "GENE"
+  }
+  output <- sapply(search_list, function(item.vec) {
+    item.vec.split <- strsplit(item.vec,";") %>% unlist
+    loc <- rep(FALSE, nrow(input)) #loc = locations of all the "hits"
+    for(item in item.vec.split)
+      loc <- loc | grepl(item,input[,search_in], ignore.case = T)
+    hits <- sum(loc)
+    if (ind) {
+      freq <- input[loc,] %>% select(contains(toupper(dataset)), contains("AF")) %>% unlist %>% as.numeric
+      final <- 1-prod(1-freq[!is.na(freq)])
+    } else {
+      final <- mean(colSums( input[loc,(1+length(front_cols)):ncol(input)] ))/2
+    }
+    c(final, hits) %>% setNames(c(paste("AF",toupper(dataset),sep = "_"),"Hits"))
+  }) %>% t %>% tbl_df
+  data.frame(search_list, output)
+}
+freq_1000g.count.mim <- getAlleleFreq(merged_1000g, ind = F, method = "MIM", dataset = "1000G")
+freq_1000g.calc.mim <- getAlleleFreq(merged_1000g, ind = T, method = "MIM", dataset = "1000G")
+freq_exac.calc.mim <- getAlleleFreq(merged_exac, ind = T, method = "MIM", dataset = "EXAC")
+freq_1000g.count.tags <- getAlleleFreq(merged_1000g, ind = F, method = "Tags", dataset = "1000G")
+freq_1000g.calc.tags <- getAlleleFreq(merged_1000g, ind = T, method = "Tags", dataset = "1000G")
+freq_exac.calc.tags <- getAlleleFreq(merged_exac, ind = T, method = "Tags", dataset = "EXAC")
+freq_1000g.count.gene <- getAlleleFreq(merged_1000g, ind = F, method = "Gene", dataset = "1000G")
+freq_1000g.calc.gene <- getAlleleFreq(merged_1000g, ind = T, method = "Gene", dataset = "1000G")
+freq_exac.calc.gene <- getAlleleFreq(merged_exac, ind = T, method = "Gene", dataset = "EXAC")
+allele.freq <- data.frame(
+                   #MIM_COUNT_1000G = freq_1000g.count.mim$AF_1000G, 
+                   #MIM_CALC_1000G = freq_1000g.calc.mim$AF_1000G, 
+                   #MIM_CALC_EXAC = freq_exac.calc.mim$AF_EXAC, 
+                   TAGS_COUNT_1000G = freq_1000g.count.tags$AF_1000G, 
+                   TAGS_CALC_1000G = freq_1000g.calc.tags$AF_1000G, 
+                   TAGS_CALC_EXAC = freq_exac.calc.tags$AF_EXAC
+                   #GENE_COUNT_1000G = freq_1000g.count.gene$AF_1000G, 
+                   #GENE_CALC_1000G = freq_1000g.calc.gene$AF_1000G, 
+                   #GENE_CALC_EXAC = freq_exac.calc.gene$AF_EXAC
+                   )
+row.names(allele.freq) <- ACMG_Lit$Disease
+```
+<br />
+
+<!--\newpage-->
+## Comparisons of AF(disease) by Dataset and Collection Methods
+
+Correlation Table: 
+``` {r af_comparison, fig.width = 10}
+cor(allele.freq) %>% as.data.frame %>% pander
+par(mfrow=c(1,2))
+#plot(allele.freq[,3:ncol(allele.freq)], main = "ExAC v. 1000 Genomes", xlim = c(0.001, max(allele.freq[,4])), las = 1); abline(a = 0, b = 1); frame()
+ggplot(aes(x = TAGS_CALC_1000G, y = TAGS_CALC_EXAC), data = allele.freq) + 
+  geom_point(stat = "identity") + ggtitle("ExAC v. 1000 Genomes") + 
+  geom_text(aes(label = row.names(allele.freq)), check_overlap = T, hjust = 0, nudge_x = 0.005) + 
+  scale_x_continuous(limits = c(0, max(allele.freq[,"TAGS_CALC_EXAC"])))
+ratio_diff <- function(af_1, af_2, title) {
+  (pmax(af_1, af_2)/pmin(af_1, af_2)) %>% setNames(ACMG_Lit$Disease) %>% sort -> ratio
+  plot(ratio, main = title, ylab = "Ratio (larger/smaller)")
+  median(ratio[is.finite(ratio)])
+}
+count_calc_diff <- ratio_diff(allele.freq$TAGS_CALC_1000G, allele.freq$TAGS_COUNT_1000G, title = "Counting v. Calculation (1000 Genomes)")
+exac_1000g_diff <- ratio_diff(allele.freq$TAGS_CALC_EXAC, allele.freq$TAGS_CALC_1000G, title = "1000 Genomes v. ExAC (Calculation)") %>% invisible
+par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
+```
+
+The median AF(disease) ratio between counting and calculation is: `r signif(count_calc_diff,4)`.  
+The median AF(disease) ratio between ExAC and 1000 Genomes is: `r signif(exac_1000g_diff,4)`.  
+<br />
+
+<!--\newpage-->
+## Penetrance as a Function of P(V|D)
+
+The left end of the boxplot indicates P(V|D) = 0.001,  
+the bold line in the middle indicates P(V|D) = 0.02,   
+the right end of the boxplot indicates P(V|D) = 0.5.  
+
+```{r penetrance_f_AH, fig.width = 8}
+get_penetrance <- function(ah_low, ah_high, dataset) {
+  # Map of disease name to disease tags
+  disease <- ACMG_Lit$Disease
+  if (dataset == "1000 Genomes")
+    named.freqs <- allele.freq$TAGS_COUNT_1000G %>% setNames(disease)
+  if (dataset == "ExAC")
+    named.freqs <- allele.freq$TAGS_CALC_EXAC %>% setNames(disease)
+  named.prev <- 1/mean.prev %>% setNames(disease)
+  # Repeats allow for correct quartile calculations
+  #point estimate set to geometric mean
+  allelic.het <- c(ah_low, ah_low, sqrt(ah_low*ah_high) %>% round(3), ah_high, ah_high)
+  # Matrix of penetrance values for allelic het range, capped at 1
+  penetrance <- pmin(1, as.vector(allelic.het %o% (named.prev/named.freqs)))
+  order(penetrance[c(F,F,T,F,F)], decreasing = T) -> ord
+  # replicate each element n times to create labels
+  penetrance_data <- data.frame("penetrance" = penetrance, "disease" =
+    factor(sapply(disease, function(x) rep(x,length(allelic.het))) %>% as.vector,
+    levels = disease[ord]) )
+  par(mar=c(5, 15, 5, 2))
+  boxplot(penetrance ~ disease, penetrance_data, horizontal = TRUE, las = 1, xlab = "Penetrance",
+          main = dataset, cex.axis = 0.7)
+  abline(v=0.5, lty=2)
+  par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
+  penetrance_data
+}
+pen_1000g <- get_penetrance(ah_low = 0.001, ah_high = 0.5, dataset = "1000 Genomes")
+pen_exac <- get_penetrance(ah_low = 0.001, ah_high = 0.5, dataset = "ExAC")
+
+```
+<br />
+
+<!--\newpage-->
+## Penetrance as a Function of Prevalence
+
+Note that this is only possible in the dozen or so cases where a prevalence range was given, rather than a point estimate. 
+``` {r prev_range, fig.wigth = 8, fig.height = 4}
+doubles <- ACMG_Lit[!is.na(combined),c("Disease","Inverse.Prevalence.1","Inverse.Prevalence.2")]
+doubles$Mean.Inverse.Prevalence <- (doubles[,2]+doubles[,3])/2
+
+data.frame(Disease = doubles$Disease, Prevalence_Ratio = round(doubles$Inverse.Prevalence.1/doubles$Inverse.Prevalence.2,1)) %>% arrange(Prevalence_Ratio) %>% pander
+#par(mar=c(5, 15, 5, 2))
+#values <- doubles$Inverse.Prevalence.1/doubles$Inverse.Prevalence.2 %>% setNames(doubles$Disease)
+#barplot(values %>% sort, horiz = T, las = 1, xlim = c(0,ceiling(max(values)/5)*5), 
+#        xlab = "Ratio of prevalence (larger/smaller)", main = "Range of prevalence estimates")
+#par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
+```
+
+``` {r disp_prev_plots, fig.width = 8, fig.height = 3.5}
+prev.range <- 1/doubles[,c(2,2,4,3,3)] %>% as.matrix
+#Set this to 1 rather than 0.02
+penetrance_out <- function(allelic.het) {
+  penetrance <- (allelic.het*prev.range/allele.freq$TAGS_COUNT_1000G[!is.na(combined)]) %>% 
+    t %>% as.vector %>% pmin(1)
+  ord <- order(penetrance[c(F,F,T,F,F)] %>% as.vector, decreasing = T)
+  # replicate each element n times to create labels
+  penetrance_data <- data.frame("penetrance" = penetrance,
+    "disease" = factor(sapply(doubles$Disease, function(x) rep(x,5)) %>% as.vector,
+    levels = doubles$Disease[ord])
+  )
+  par(mar=c(5, 15, 5, 2))
+  boxplot(penetrance ~ disease, penetrance_data, horizontal = TRUE, las = 1, range = 0, 
+          xlab = "Penetrance", ylim = c(0,1),
+          main = paste("Penetrance Estimates for Prevalence Ranges, P(V|D) =", allelic.het))
+  abline(v=0.5, lty=2)
+  par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
+  penetrance_data
+}
+pen_ah_0.1 <- penetrance_out(0.1)
+pen_ah_1.0 <- penetrance_out(1.0)
+
+par(mfrow=c(1,2))
+pen_1000g$penetrance[c(F,F,F,F,T)] %>% ecdf %>% 
+  plot(ylab = "Fraction with max theoretical penetrance < P", xlab = "P", 
+       main = "CDF: Penetrance ~ P(V|D)", ylim = c(0,1.02), pch = 19)
+pen_exac$penetrance[c(F,F,F,F,T)] %>% ecdf %>% plot(col = 'red', add = T, pch = 1)
+legend("bottomright", legend = c("ExAC","1000G"), col = c("red","black"), pch = c(1,19))
+
+pen_ah_0.1$penetrance[c(F,F,F,F,T)] %>% ecdf %>% 
+  plot(xlab = "P", ylab = "", main = "CDF: Penetrance ~ P(D)", ylim = c(0,1.02), pch = 19)
+pen_ah_1.0$penetrance[c(F,F,F,F,T)] %>% ecdf %>% plot(col = 'red', add = T, pch = 1)
+legend("bottomright", legend = c("P(V|D) = 0.1","P(V|D) = 1.0"), col = c("black","red"), pch = c(19,1))
+par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
+```
+
+
+<!--
+ 3. What fraction of people have an LP/P mutation in each disease category?
+```{r LP/P_freq_by_disease, fig.width = 10, eval = F}
+#Plots aggregate AF by disease: P(V)
+disease_af <- allele.freq$COUNT_1000G %>% setNames(allele.freq$Pattern) %>% sort(decreasing = T)
+par(mar=c(5, 18, 5, 2)) #changes plotting window to have greater left-margins
+barplot(disease_af, las = 2, pch = 'h', xlab ="P(having a variant)", main = "Carrier frequency by disease",
+        horiz = T, xlim = c(0,max(disease_af))*1.1, las = 1, cex.names = 0.8)
+par(mar=c(5, 4, 4, 2)+0.1) #resets margins
+
+```
+-->
+<!--
+```{r, eval = F}
+#download.file(url = "http://www.omim.org/static/omim/data/mim2gene.txt", destfile = "Supplementary_Files/mim2gene.txt", method = "internal")
+#mim2gene <- read.table(file = "Supplementary_Files/mim2gene.txt", header = FALSE, sep = "\t", stringsAsFactors = F)
+#colnames(mim2gene) <- c("MIM_Number","MIM_Entry_Type","Entrez_Gene_ID (NCBI)","Approved_Gene_Symbol_(HGNC)","Ensembl_Gene_ID_(Ensembl)")
+#mim2gene <- mim2gene[mim2gene$`Approved_Gene_Symbol_(HGNC)`!="",]
+```
+-->
+<!--
+### 1. Gene distribution of ClinVar Pathogenic Variants
+```{r gene_distribution, fig.width = 10, eval = F}
+plot_gene_distrib <- function() {
+  x_1000g <- table(merged_1000g$GENE)
+  x_exac <- table(merged_exac$GENE)
+  gene_ord <- order(x_exac+x_1000g, decreasing = T)
+  plot(x_exac[gene_ord], type = 'o', las = 2, ylab = "No. of Pathogenic Variants",
+       main = "Gene distribution of ClinVar Pathogenic Variants")
+  lines(x_1000g[gene_ord], type = 'o', col = 'red')
+  legend("topright", legend = c("ExAC","1000 Genomes"), fill = c("Black", "Red"), col = c("Black","Red"))
+}
+plot_gene_distrib()
+```
+-->
+<!--
+```{r, eval = F}
+real_tags <- unique(tags)
+sapply(1:length(real_tags), function(i) {
+  sapply(strsplit(ACMG_Lit$Disease_MIM[i],";")[[1]], function(mim) {
+    grepl(mim, clinvar$CLNDSDBID)
+  }) %>% apply(1,any) -> loc_1
+  sapply(strsplit(real_tags[i],";")[[1]], function(mim) {
+    grepl(mim, clinvar$CLNDBN)
+  }) %>% apply(1,any) -> loc_2
+  c(sum(loc_1),sum(loc_2))
+})
+good_results <- temp
+colnames(good_results) <- ACMG_Lit$Disease
+row.names(good_results) <- c("MIM","Tag")
+```
+-->
+<!--
+```{r, eval = F}
+real_tags <- unique(tags)
+sapply(1:length(real_tags), function(i) {
+  
+  i=27
+  sapply(strsplit(ACMG_Lit$Disease_MIM[i],";")[[1]], function(mim) {
+    grepl(mim, clinvar$CLNDSDBID)
+  }) %>% apply(1,any) -> loc_1
+  clinvar$CLNDBN[loc_1][sample(sum(loc_1),20)]
+  
+  length(grep("aneurysm",clinvar$CLNDBN[loc_1]))/sum(loc_1)
+  grepl()
+  
+  length(grep("C0027672",clinvar$CLNDSDBID[loc_1]))/sum(loc_1)
+  grepl()
+  length(grep("C0027672",clinvar$CLNDSDBID[loc_1]))/sum(loc_1)
+  
+  sapply(strsplit(real_tags[i],";")[[1]], function(mim) {
+    grepl(mim, clinvar$CLNDBN)
+  }) %>% apply(1,any) -> loc_2
+  c(sum(loc_1),sum(loc_2))
+})
+
 tags <- c("adenomatous", rep("aneurysm",3), rep("arrhythmogenic;dreifuss",5),
           rep("breast;ovarian",2),"brugada;gardner","tachycardia","dilated",
           "ehler", "fabry","hypercholesterolemia",rep("hypertrophic",8), 
@@ -833,174 +1080,7 @@ tags <- c("adenomatous", rep("aneurysm",3), rep("arrhythmogenic;dreifuss",5),
           "retinoblastoma",rep("tuberous",2),"Hippel;Lindau","Wilms")
 print(unique(tags), quote = F)
 ```
-<br />
-
-#### 3. Aggregate allele frequencies of all variants associated with each disease - AF(disease)
-
-We define AF(disease) as the probability of having at least 1 variant associated with the disease. <br /> 
-This can be computed in two ways: <br />
-(a) By direct counting, from genotype data in 1000 Genomes. <br />
-(b) AF(disease) = $1-\prod_{variant}(1-AF_{variant})$, from population data in ExAC. This assumes independence between variants. <br />
-
-```{r lit_af}
-getAlleleFreq <- function(input, tags, ind, dataset) {
-  data <- toupper(dataset)
-  temp <- sapply(unique(tags), function(tag) {
-    tag.vec <- strsplit(tag,";") %>% unlist
-    loc <- rep(FALSE, nrow(input))
-    for(tag in tag.vec)
-      loc <- loc | grepl(tag,input$CLNDBN, ignore.case = T)
-    #loc = locations of all the "hits"
-    hits <- sum(loc)
-    if (ind) {
-      freq <- input[loc,] %>% select(contains(data), contains("AF")) %>% unlist %>% as.numeric
-      final <- 1-prod(1-freq[!is.na(freq)])
-    } else {
-      final <- mean(colSums( input[loc,(1+length(front_cols)):ncol(input)] ))/2
-    }
-    c(final, hits) %>% setNames(c(paste("AF",data,sep = "_"),"Hits"))
-  }) %>% t %>% tbl_df
-  data.frame("Tags" = unique(tags), temp)
-}
-freq_1000g.count <- getAlleleFreq(merged_1000g, tags, ind = F, dataset = "1000G")
-freq_1000g.calc <- getAlleleFreq(merged_1000g, tags, ind = T, dataset = "1000G")
-freq_exac.calc <- getAlleleFreq(merged_exac, tags, ind = T, dataset = "EXAC")
-allele.freq <- data.frame("Pattern" = tags %>% unique,
-                   COUNT_1000G = freq_1000g.count$AF_1000G, 
-                   CALC_1000G = freq_1000g.calc$AF_1000G, 
-                   CALC_EXAC = freq_exac.calc$AF_EXAC)
-```
-<br />
-
-#### 4. Comparisons of AF(disease) by dataset or method
-
-Correlation Table: 
-``` {r af_comparison, fig.width = 10}
-cor(allele.freq[,2:ncol(allele.freq)])
-par(mfrow=c(1,2))
-#plot(allele.freq[,3:ncol(allele.freq)], main = "ExAC v. 1000 Genomes", xlim = c(0.001, max(allele.freq[,4])), las = 1); abline(a = 0, b = 1); frame()
-pattern_short <- strsplit(allele.freq$Pattern %>% as.character, ";") %>% sapply("[[",1)
-ggplot(aes(x = CALC_1000G, y = CALC_EXAC), data = allele.freq) + 
-  geom_point(stat = "identity") + ggtitle("ExAC v. 1000 Genomes") + 
-  geom_text(aes(label = pattern_short), check_overlap = T, hjust = 0, nudge_x = 0.005) + 
-  scale_x_continuous(limits = c(0, max(allele.freq[,4])))
-ratio_diff <- function(af_1, af_2, title) {
-  (pmax(af_1, af_2)/pmin(af_1, af_2)) %>% setNames(pattern_short) %>% sort -> ratio
-  plot(ratio, main = title, ylab = "Ratio (larger/smaller)")
-  median(ratio[is.finite(ratio)])
-}
-count_calc_diff <- ratio_diff(allele.freq$CALC_1000G, allele.freq$COUNT_1000G, title = "Counting v. Calculation (1000 Genomes)")
-exac_1000g_diff <- ratio_diff(allele.freq$CALC_EXAC, allele.freq$CALC_1000G, title = "1000 Genomes v. ExAC (Calculation)") %>% invisible
-par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
-```
-
-The median AF(disease) ratio between counting and calculation is: `r signif(count_calc_diff,4)`.  
-The median AF(disease) ratio between ExAC and 1000 Genomes is: `r signif(exac_1000g_diff,4)`.  
-<br />
-
-\newpage
-#### 5. Penetrance as a function of allelic heterogeneity: P(V|D) = 0.001, 0.02, 0.5
-
-```{r penetrance_f_AH, fig.width = 10}
-get_penetrance <- function(ah_low, ah_high, dataset) {
-  # Map of disease name to disease tags
-  disease <- ACMG_Lit$Disease
-  if (dataset == "1000 Genomes")
-    named.freqs <- allele.freq$COUNT_1000G %>% setNames(disease)
-  if (dataset == "ExAC")
-    named.freqs <- allele.freq$CALC_EXAC %>% setNames(disease)
-  named.prev <- 1/ACMG_Lit$Inverse.Prevalence %>% setNames(disease)
-  # Repeats allow for correct quartile calculations
-  #point estimate set to geometric mean
-  allelic.het <- c(ah_low, ah_low, sqrt(ah_low*ah_high) %>% round(3), ah_high, ah_high)
-  # Matrix of penetrance values for allelic het range, capped at 1
-  penetrance <- pmin(1, as.vector(allelic.het %o% (named.prev/named.freqs)))
-  order(penetrance[c(F,F,T,F,F)], decreasing = T) -> ord
-  # replicate each element n times to create labels
-  penetrance_data <- data.frame("penetrance" = penetrance, "disease" =
-    factor(sapply(disease, function(x) rep(x,length(allelic.het))) %>% as.vector,
-    levels = disease[ord]) )
-  par(mar=c(5, 20, 5, 2))
-  boxplot(penetrance ~ disease, penetrance_data, horizontal = TRUE, las = 1, xlab = "Penetrance",
-          main = paste(dataset,"Penetrance Estimates as a function of P(V|D)"), cex.axis = 0.7)
-  abline(v=0.5, lty=2)
-  par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
-  penetrance_data
-}
-pen_1000g <- get_penetrance(ah_low = 0.001, ah_high = 0.5, dataset = "1000 Genomes")
-pen_exac <- get_penetrance(ah_low = 0.001, ah_high = 0.5, dataset = "ExAC")
-
-par(mfrow=c(1,2)); frame()
-pen_1000g$penetrance[c(F,F,F,F,T)] %>% ecdf %>% 
-  plot(ylab = "Fraction with max theoretical penetrance < P", xlab = "P", 
-       main = "Penetrance CDF", ylim = c(0,1.02), pch = 19)
-pen_exac$penetrance[c(F,F,F,F,T)] %>% ecdf %>% plot(col = 'red', add = T, pch = 1)
-legend("bottomright", legend = c("ExAC","1000G"), col = c("red","black"), pch = c(1,19))
-par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
-```
-<br />
-
-#### 6. Penetrance as a function of prevalence (when a range is presented)
-
-``` {r prev_range, fig.wigth = 10}
-doubles <- ACMG_Lit[ranged <- !is.na(ACMG_Lit$Inverse.P2),1:5]
-par(mar=c(5, 15, 5, 2))
-values <- doubles$Inverse.P1/doubles$Inverse.P2 %>% setNames(doubles$Disease)
-barplot(values %>% sort, horiz = T, las = 1, xlim = c(0,ceiling(max(values)/5)*5), 
-        xlab = "Ratio of prevalence (larger/smaller)", main = "Range of prevalence estimates")
-par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
-```
-
-``` {r disp_prev_plots, fig.width = 10}
-prev.range <- 1/doubles[,c(3,3,5,4,4)] %>% as.matrix
-#Set this to 1 rather than 0.02
-penetrance_out <- function(allelic.het) {
-  penetrance <- (allelic.het*prev.range/allele.freq$COUNT_1000G[ranged]) %>% 
-    t %>% as.vector %>% pmin(1)
-  ord <- order(penetrance[c(F,F,T,F,F)] %>% as.vector, decreasing = T)
-  # replicate each element n times to create labels
-  penetrance_data <- data.frame("penetrance" = penetrance,
-    "disease" = factor(sapply(doubles$Disease, function(x) rep(x,5)) %>% as.vector,
-    levels = doubles$Disease[ord])
-  )
-  par(mar=c(5, 15, 5, 2))
-  boxplot(penetrance ~ disease, penetrance_data, horizontal = TRUE, las = 1, range = 0, 
-          xlab = "Penetrance", ylim = c(0,1),
-          main = paste("Penetrance Range Estimates for Prevalence Ranges, P(V|D) =", allelic.het))
-  abline(v=0.5, lty=2)
-  par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
-  penetrance_data
-}
-pen_ah_0.1 <- penetrance_out(0.1)
-pen_ah_1.0 <- penetrance_out(1.0)
-
-par(mfrow=c(1,2)); frame()
-pen_ah_0.1$penetrance[c(F,F,F,F,T)] %>% ecdf %>% 
-  plot(ylab = "Fraction with max theoretical penetrance < P", xlab = "P", 
-       main = "Penetrance CDF", ylim = c(0,1.02), pch = 19)
-pen_ah_1.0$penetrance[c(F,F,F,F,T)] %>% ecdf %>% plot(col = 'red', add = T, pch = 1)
-legend("bottomright", legend = c("P(V|D) = 0.1","P(V|D) = 1.0"), col = c("black","red"), pch = c(19,1))
-par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
-```
-
-
-<!--
-> 3. What fraction of people have an LP/P mutation in each disease category?
-
-```{r LP/P_freq_by_disease, fig.width = 10}
-#Plots aggregate AF by disease: P(V)
-disease_af <- allele.freq$COUNT_1000G %>% setNames(allele.freq$Pattern) %>% sort(decreasing = T)
-par(mar=c(5, 18, 5, 2)) #changes plotting window to have greater left-margins
-barplot(disease_af, las = 2, pch = 'h', xlab ="P(having a variant)", main = "Carrier frequency by disease",
-        horiz = T, xlim = c(0,max(disease_af))*1.1, las = 1, cex.names = 0.8)
-par(mar=c(5, 4, 4, 2)+0.1) #resets margins
-
-```
-
-```{r}
-#download.file(url = "http://www.omim.org/static/omim/data/mim2gene.txt", destfile = "Temp_Files/mim2gene.txt", method = "internal")
-#mim2gene <- read.table(file = "Temp_Files/mim2gene.txt", header = FALSE, sep = "\t", stringsAsFactors = F)
-#colnames(mim2gene) <- c("MIM_Number","MIM_Entry_Type","Entrez_Gene_ID (NCBI)","Approved_Gene_Symbol_(HGNC)","Ensembl_Gene_ID_(Ensembl)")
-#mim2gene <- mim2gene[mim2gene$`Approved_Gene_Symbol_(HGNC)`!="",]
-```
 -->
+
+
+
