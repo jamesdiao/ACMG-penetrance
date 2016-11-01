@@ -10,7 +10,16 @@ output:
     number_sections: yes
     toc: yes
 geometry: margin=1in
-abstract: "Here, we examine ExAC and the 1000 Genomes Project to investigate the distribution of pathogenic variants across diverse populations. Pathogenic variants were found to be distributed unevenly across ancestral groups, with incidental findings inflated relative to empirical disease prevalences. Quantitative risk estimates were derived by modeling penetrance as a function of disease prevalence, allele frequency, and allelic heterogeneity. Plausible ranges for these parameters were estimated from ExAC, the 1000 Genomes cohort, and the medical literature. Under the most generous assumptions, penetrance estimates for the majority of diseases fall under 50%, with many under 5%. We propose the described model of penetrance as a quantitative framework for evaluating, comparing, and updating clinical interpretations of pathogenic variants."
+abstract: Here, we examine ExAC and the 1000 Genomes Project to investigate the distribution
+  of pathogenic variants across diverse populations. Pathogenic variants were found
+  to be distributed unevenly across ancestral groups, with incidental findings inflated
+  relative to empirical disease prevalences. Quantitative risk estimates were derived
+  by modeling penetrance as a function of disease prevalence, allele frequency, and
+  allelic heterogeneity. Plausible ranges for these parameters were estimated from
+  ExAC, the 1000 Genomes cohort, and the medical literature. Under the most generous
+  assumptions, penetrance estimates for the majority of diseases fall under 50%, with
+  many under 5%. We propose the described model of penetrance as a quantitative framework
+  for evaluating, comparing, and updating clinical interpretations of pathogenic variants.
 ---
 
 **Working Directory**: `r getwd()`
@@ -893,22 +902,23 @@ getAlleleFreq <- function(input, ind, method, dataset) {
       loc <- loc | grepl(item,input[,search_in], ignore.case = T)
     hits <- sum(loc)
     if (ind) {
-      freq <- input[loc,] %>% select(contains(toupper(dataset)), contains("AF")) %>% unlist %>% as.numeric
+      freq <- input[loc,] %>% select(contains(toupper(dataset)), contains("AF")) %>% unlist %>% as.numeric #vector of all allele frequencies
+      freq <- 1-(1-freq)^2 #probability of having a non-reference site at EITHER allele. 
       final <- 1-prod(1-freq[!is.na(freq)])
     } else {
       front_cols <- 1:(grep("HG00096",colnames(input))-1)
-      final <- mean(colSums( input[loc,(1+length(front_cols)):ncol(input)] ))/2
+      final <- mean(colSums( input[loc,-front_cols] )>0)
     }
     c(final, hits) %>% setNames(c(paste("AF",toupper(dataset),sep = "_"),"Hits"))
   }) %>% t %>% tbl_df
   data.frame(search_list, output)
 }
-freq_1000g.count.mim <- getAlleleFreq(merged_1000g, ind = F, method = "MIM", dataset = "1000G")
-freq_1000g.calc.mim <- getAlleleFreq(merged_1000g, ind = T, method = "MIM", dataset = "1000G")
-freq_exac.calc.mim <- getAlleleFreq(merged_exac, ind = T, method = "MIM", dataset = "EXAC")
-freq_1000g.count.tags <- getAlleleFreq(merged_1000g, ind = F, method = "Tags", dataset = "1000G")
-freq_1000g.calc.tags <- getAlleleFreq(merged_1000g, ind = T, method = "Tags", dataset = "1000G")
-freq_exac.calc.tags <- getAlleleFreq(merged_exac, ind = T, method = "Tags", dataset = "EXAC")
+#freq_1000g.count.mim <- getAlleleFreq(merged_1000g, ind = F, method = "MIM", dataset = "1000G")
+#freq_1000g.calc.mim <- getAlleleFreq(merged_1000g, ind = T, method = "MIM", dataset = "1000G")
+#freq_exac.calc.mim <- getAlleleFreq(merged_exac, ind = T, method = "MIM", dataset = "EXAC")
+#freq_1000g.count.tags <- getAlleleFreq(merged_1000g, ind = F, method = "Tags", dataset = "1000G")
+#freq_1000g.calc.tags <- getAlleleFreq(merged_1000g, ind = T, method = "Tags", dataset = "1000G")
+#freq_exac.calc.tags <- getAlleleFreq(merged_exac, ind = T, method = "Tags", dataset = "EXAC")
 freq_1000g.count.gene <- getAlleleFreq(merged_1000g, ind = F, method = "Gene", dataset = "1000G")
 freq_1000g.calc.gene <- getAlleleFreq(merged_1000g, ind = T, method = "Gene", dataset = "1000G")
 freq_exac.calc.gene <- getAlleleFreq(merged_exac, ind = T, method = "Gene", dataset = "EXAC")
@@ -922,12 +932,12 @@ row.names(allele.freq) <- ACMG_Lit$Disease
 <br />
 
 Correlation Table: 
-``` {r af_comparison, fig.width = 10}
+``` {r af_comparison, fig.width = 10, dependson = "disease_afs"}
 cor(allele.freq) %>% as.data.frame %>% pander
 par(mfrow=c(1,2), mar=c(5, 5.5, 4, 2)+0.1)
 #plot(allele.freq[,3:ncol(allele.freq)], main = "ExAC v. 1000 Genomes", xlim = c(0.001, max(allele.freq[,4])), las = 1); abline(a = 0, b = 1); frame()
 ggplot(aes(x = CALC_1000G, y = CALC_EXAC), data = allele.freq) + 
-  geom_point(stat = "identity") + ggtitle("ExAC v. 1000 Genomes") + 
+  geom_point(stat = "identity", col = 'red') + ggtitle("ExAC v. 1000 Genomes") + 
   geom_text_repel(aes(label = disease_abbrev_longer)) +
   scale_x_continuous(limits = c(10^-5, max(allele.freq[,"CALC_EXAC"]))*5, trans='log10', breaks = 10^-(0:3)) + 
   scale_y_continuous(limits = c(10^-5, max(allele.freq[,"CALC_EXAC"]))*5, trans='log10', breaks = 10^-(0:3)) 
@@ -1030,7 +1040,7 @@ pen_ah_1.0 <- penetrance_out(1.0)
 
 This can only be computed in 10 cases where a prevalence range was given, rather than a point estimate. 
 
-## Max/Min Penetrance as a Function of P(D) and P(V|D): 
+## Max/Min Penetrance as a Function of P(D) and P(V|D)
 
 The left end of the boxplot indicates P(D) AND P(V|D) = lower value,  
 the bold line in the middle indicates P(D) AND P(V|D) = mean(log(values)),   
@@ -1097,7 +1107,7 @@ par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
 ```
 
 
-## Comparing Mean Penetrance between ExAC and 1000 Genomes: 
+## Comparing Mean Penetrance between ExAC and 1000 Genomes
 
 ```{r pen_compare}
 penetrance_data <- data.frame("Disease" = disease_abbrev_longer, 
