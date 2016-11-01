@@ -18,14 +18,14 @@ abstract: "Here, we examine ExAC and the 1000 Genomes Project to investigate the
 ```{r setup, include = F}
 knitr::opts_chunk$set(echo = F, eval = T, cache = T, warning = F, message = F)
 # setwd("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance")
-# save.image("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-10-29")
-# load("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-10-29")
+# save.image("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-11-01")
+# load("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-11-01")
 # clinvar[clinvar$VAR_ID=="3_38645420_T_C",]
 ```
 
 ```{r packages, include = F, cache = F}
 # Install and load all required packages
-pkg_list <- c("scrapeR","RMySQL", "knitr","pander","ggplot2","tibble","curl","tidyr","dplyr")
+pkg_list <- c("scrapeR","RMySQL", "knitr","pander","ggplot2","ggrepel", "tibble","curl","tidyr","dplyr")
 installed <- pkg_list %in% installed.packages()[,"Package"]
 if (!all(installed))
   install.packages(pkg_list[!installed])
@@ -797,7 +797,7 @@ par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
 
 # Penetrance Estimates
 
-## Bayes' Rule as a Model for Estimating Penetrance Using 
+## Bayes' Rule as a Model for Estimating Penetrance 
 
 Let $V_x$ be the event that an individual has 1 or more variant related to disease $x$,  
 and $D_x$ be the event that the individual is later diagnosed with disease $x$. 
@@ -808,7 +808,7 @@ In this case, we can define the following probabilities:
 3. Allelic Heterogeneity = $P(V_x|D_x)$  
 4. Penetrance = $P(D_x|V_x)$  
 
-By Bayes' Rule, the penetrance of a variant related to disease $x$ may be defined as: $$P(D_x|V_x) = \frac{P(D_x)*P(V_x|D_x)}{P(V_x)} = \frac{Prevalence*Allelic-Heteogeneity}{Allele-Frequency}$$
+By Bayes' Rule, the penetrance of a variant related to disease $x$ may be defined as: $$P(D_x|V_x) = \frac{P(D_x)*P(V_x|D_x)}{P(V_x)} = \frac{Prevalence*Allelic.Heteogeneity}{Allele.Frequency}$$
 
 To compute penetrance estimates for each of the diseases related to the ACMG-56 genes, we will use the prevalence data we collected into `Literature_Prevalence_Estimates.csv`, allele frequency data from 1000 Genomes and ExAC, and a broad range of values for allelic heterogeneity.  
 
@@ -852,12 +852,12 @@ Later, we face the question of how to compute point estimates for penetrance, wh
 ```{r distr_prev, fig.width = 10, fig.height = 5}
 par(mfrow=c(1,2), mar=c(5, 5.5, 4, 2)+0.1)
 plot((1/mean.prev) %>% sort, 1:nrow(ACMG_Lit), 
-     xlab = sprintf("Allele Frequency: (r=%s)", round(cor((1/mean.prev) %>% sort, 1:nrow(ACMG_Lit)),2)), 
+     xlab = sprintf("Prevalence Values: (r=%s)", round(cor((1/mean.prev) %>% sort, 1:nrow(ACMG_Lit)),2)), 
      yaxt = 'n', ylab = "")
 axis(2,at=1:nrow(ACMG_Lit),labels=disease_abbrev[order(1/mean.prev)], las = 2, cex.axis = 0.8)
 plot((1/mean.prev) %>% sort, 1:nrow(ACMG_Lit), 
      log = "x", yaxt = 'n', xaxt = 'n', ylab = "",
-     xlab = sprintf("Allele Frequency (log-scale): r=%s", round(cor(log(1/mean.prev) %>% sort, 1:nrow(ACMG_Lit)),2)))
+     xlab = sprintf("Prevalence Values (log-scale): r=%s", round(cor(log(1/mean.prev) %>% sort, 1:nrow(ACMG_Lit)),2)))
 axis(2,at=1:nrow(ACMG_Lit),labels=disease_abbrev[order(1/mean.prev)], las = 2, cex.axis = 0.8)
 axis(1, at=10^-c(6:1), labels=10^-c(6:1))
 par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
@@ -896,18 +896,19 @@ getAlleleFreq <- function(input, ind, method, dataset) {
       freq <- input[loc,] %>% select(contains(toupper(dataset)), contains("AF")) %>% unlist %>% as.numeric
       final <- 1-prod(1-freq[!is.na(freq)])
     } else {
+      front_cols <- 1:(grep("HG00096",colnames(input))-1)
       final <- mean(colSums( input[loc,(1+length(front_cols)):ncol(input)] ))/2
     }
     c(final, hits) %>% setNames(c(paste("AF",toupper(dataset),sep = "_"),"Hits"))
   }) %>% t %>% tbl_df
   data.frame(search_list, output)
 }
-#freq_1000g.count.mim <- getAlleleFreq(merged_1000g, ind = F, method = "MIM", dataset = "1000G")
-#freq_1000g.calc.mim <- getAlleleFreq(merged_1000g, ind = T, method = "MIM", dataset = "1000G")
-#freq_exac.calc.mim <- getAlleleFreq(merged_exac, ind = T, method = "MIM", dataset = "EXAC")
-#freq_1000g.count.tags <- getAlleleFreq(merged_1000g, ind = F, method = "Tags", dataset = "1000G")
-#freq_1000g.calc.tags <- getAlleleFreq(merged_1000g, ind = T, method = "Tags", dataset = "1000G")
-#freq_exac.calc.tags <- getAlleleFreq(merged_exac, ind = T, method = "Tags", dataset = "EXAC")
+freq_1000g.count.mim <- getAlleleFreq(merged_1000g, ind = F, method = "MIM", dataset = "1000G")
+freq_1000g.calc.mim <- getAlleleFreq(merged_1000g, ind = T, method = "MIM", dataset = "1000G")
+freq_exac.calc.mim <- getAlleleFreq(merged_exac, ind = T, method = "MIM", dataset = "EXAC")
+freq_1000g.count.tags <- getAlleleFreq(merged_1000g, ind = F, method = "Tags", dataset = "1000G")
+freq_1000g.calc.tags <- getAlleleFreq(merged_1000g, ind = T, method = "Tags", dataset = "1000G")
+freq_exac.calc.tags <- getAlleleFreq(merged_exac, ind = T, method = "Tags", dataset = "EXAC")
 freq_1000g.count.gene <- getAlleleFreq(merged_1000g, ind = F, method = "Gene", dataset = "1000G")
 freq_1000g.calc.gene <- getAlleleFreq(merged_1000g, ind = T, method = "Gene", dataset = "1000G")
 freq_exac.calc.gene <- getAlleleFreq(merged_exac, ind = T, method = "Gene", dataset = "EXAC")
@@ -927,7 +928,7 @@ par(mfrow=c(1,2), mar=c(5, 5.5, 4, 2)+0.1)
 #plot(allele.freq[,3:ncol(allele.freq)], main = "ExAC v. 1000 Genomes", xlim = c(0.001, max(allele.freq[,4])), las = 1); abline(a = 0, b = 1); frame()
 ggplot(aes(x = CALC_1000G, y = CALC_EXAC), data = allele.freq) + 
   geom_point(stat = "identity") + ggtitle("ExAC v. 1000 Genomes") + 
-  geom_text(aes(label = disease_abbrev), check_overlap = T, hjust = 0, nudge_x = 0.005) +
+  geom_text_repel(aes(label = disease_abbrev_longer)) +
   scale_x_continuous(limits = c(10^-5, max(allele.freq[,"CALC_EXAC"]))*5, trans='log10', breaks = 10^-(0:3)) + 
   scale_y_continuous(limits = c(10^-5, max(allele.freq[,"CALC_EXAC"]))*5, trans='log10', breaks = 10^-(0:3)) 
 ratio_diff <- function(af_1, af_2, title) {
@@ -974,7 +975,7 @@ get_penetrance <- function(ah_low, ah_high, dataset) {
   par(mar=c(4, 7, 4, 2))
   boxplot(penetrance ~ disease, penetrance_data, horizontal = TRUE, las = 1, xlab = "Penetrance",
           main = dataset, cex.axis = 0.7, xaxt = 'n')
-  axis(1, at = seq(0,1,0.1), breaks = seq(0,1,0.1))
+  axis(1, at = seq(0,1,0.1))
   abline(v=0.5, lty=2)
   par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
   penetrance_data
@@ -1005,12 +1006,15 @@ prev.range <- 1/doubles[,c(2,2,4,3,3)] %>% as.matrix
 #Set this to 1 rather than 0.02
 penetrance_out <- function(allelic.het) {
   penetrance <- (allelic.het*prev.range/allele.freq$COUNT_1000G[!is.na(combined)]) %>% 
-    t %>% as.vector %>% pmin(1)
-  ord <- order(penetrance[c(F,F,T,F,F)] %>% as.vector, decreasing = T)
+    apply(2, function(col) pmin(col,1))
+  rownames(penetrance) <- doubles$Disease
+  ord <- penetrance %>% rowSums %>% order(decreasing = T)
+  penetrance <- penetrance[ord,]
+  colnames(penetrance) <- NULL
   # replicate each element n times to create labels
-  penetrance_data <- data.frame("penetrance" = penetrance,
-    "disease" = factor(sapply(doubles$Disease, function(x) rep(x,5)) %>% as.vector,
-    levels = doubles$Disease[ord])
+  penetrance_data <- data.frame("penetrance" = penetrance %>% t %>% as.vector,
+    "disease" = factor(sapply(row.names(penetrance), function(x) rep(x,5)) %>% as.vector,
+    levels = row.names(penetrance))
   )
   par(mar=c(4, 15, 4, 2))
   boxplot(penetrance ~ disease, penetrance_data, horizontal = TRUE, las = 1, range = 0, 
@@ -1026,6 +1030,51 @@ pen_ah_1.0 <- penetrance_out(1.0)
 
 This can only be computed in 10 cases where a prevalence range was given, rather than a point estimate. 
 
+## Max/Min Penetrance as a Function of P(D) and P(V|D): 
+
+The left end of the boxplot indicates P(D) AND P(V|D) = lower value,  
+the bold line in the middle indicates P(D) AND P(V|D) = mean(log(values)),   
+the right end of the boxplot indicates P(D) AND P(V|D) = upper value.  
+
+```{r max_values, fig.width = 8, fig.height = 4.7}
+get_penetrance <- function(ah_low, ah_high, dataset, range) {
+  # Map of disease name to disease tags
+  if (dataset == "1000 Genomes")
+    named.freqs <- allele.freq$COUNT_1000G %>% setNames(disease_abbrev_longer)
+  if (dataset == "ExAC")
+    named.freqs <- allele.freq$CALC_EXAC %>% setNames(disease_abbrev_longer)
+  inv.prev_1 <- ACMG_Lit$Inverse.Prevalence.1 %>% setNames(disease_abbrev_longer)
+  inv.prev_2 <- ACMG_Lit$Inverse.Prevalence.2 %>% setNames(disease_abbrev_longer)
+  #Adjust ranges of point values to 5, log-averaging to the original value. 
+  inv.prev_1[is.na(inv.prev_2)] <- inv.prev_1[is.na(inv.prev_2)]*(range)
+  inv.prev_2[is.na(inv.prev_2)] <- inv.prev_1[is.na(inv.prev_2)]/(range)
+  prev_final <- 1/data.frame(inv.prev_1, inv.prev_1, sqrt(inv.prev_1*inv.prev_2), 
+                           inv.prev_2, inv.prev_2)
+  allelic.het <- c(ah_low, ah_low, sqrt(ah_low*ah_high) %>% round(3), ah_high, ah_high)
+  penetrance <- apply(sweep(prev_final,MARGIN=2,allelic.het,`*`) / named.freqs, 1, function(row) pmin(row,1)) %>% as.data.frame %>% unlist
+  # Matrix of penetrance values for allelic het range, capped at 1
+  order(penetrance[c(F,F,T,F,F)], decreasing = T) -> ord
+  # replicate each element n times to create labels
+  penetrance_data <- data.frame("penetrance" = penetrance, "disease" =
+    factor(sapply(disease_abbrev_longer, function(x) rep(x,length(allelic.het))) %>% as.vector,
+    levels = disease_abbrev_longer[ord]) )
+  par(mar=c(4, 7, 4, 2))
+  boxplot(penetrance ~ disease, penetrance_data, horizontal = TRUE, las = 1, xlab = "Penetrance",
+          main = dataset, cex.axis = 0.7, xaxt = 'n')
+  axis(1, at = seq(0,1,0.1))
+  abline(v=0.5, lty=2)
+  par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
+  penetrance_data
+}
+pen_1000g_max <- get_penetrance(ah_low = 0.001, ah_high = 0.5, dataset = "1000 Genomes", range = 5)
+pen_exac_max <- get_penetrance(ah_low = 0.001, ah_high = 0.5, dataset = "ExAC", range = 5)
+```
+
+Note: Prevalence ranges of 5x were assumed for all point estimates of prevalence.  
+For example: a point estimate of 0.022 would be given the range 0.01-0.05. 
+
+## Empirical CDFs for All Penetrance Plots
+
 ```{r ecdf_plots, fig.width = 10} 
 par(mfrow=c(1,2))
 pen_1000g$penetrance[c(F,F,F,F,T)] %>% ecdf %>% 
@@ -1038,68 +1087,41 @@ pen_ah_0.1$penetrance[c(F,F,F,F,T)] %>% ecdf %>%
   plot(xlab = "P", ylab = "", main = "CDF: Penetrance ~ P(D)", ylim = c(0,1.02), pch = 19)
 pen_ah_1.0$penetrance[c(F,F,F,F,T)] %>% ecdf %>% plot(col = 'red', add = T, pch = 1)
 legend("bottomright", legend = c("P(V|D) = 0.1","P(V|D) = 1.0"), col = c("black","red"), pch = c(19,1))
+
+pen_1000g_max$penetrance[c(F,F,F,F,T)] %>% ecdf %>% 
+  plot(ylab = "Fraction with max theoretical penetrance < P", xlab = "P", 
+       main = "CDF: Penetrance ~ P(V|D) AND P(D)", ylim = c(0,1.02), pch = 19)
+pen_exac_max$penetrance[c(F,F,F,F,T)] %>% ecdf %>% plot(col = 'red', add = T, pch = 1)
+legend("bottomright", legend = c("ExAC","1000G"), col = c("red","black"), pch = c(1,19))
 par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
 ```
 
-## Penetrance ranges given P(D) and P(V|D): 
 
-The left end of the boxplot indicates P(D) AND P(V|D) = lower value,  
-the bold line in the middle indicates P(D) AND P(V|D) = mean(log(values)),   
-the right end of the boxplot indicates P(D) AND P(V|D) = upper value.  
-```{r max_values, eval = F} 
+## Comparing Mean Penetrance between ExAC and 1000 Genomes: 
 
-get_penetrance <- function(dataset) {
-  # Map of disease name to disease tags
-  if (dataset == "1000 Genomes")
-    named.freqs <- allele.freq$COUNT_1000G %>% setNames(disease_abbrev_longer)
-  if (dataset == "ExAC")
-    named.freqs <- allele.freq$CALC_EXAC %>% setNames(disease_abbrev_longer)
-  prev.range <- 1/doubles[,c(2,2,4,3,3)] %>% as.matrix
-  row.names(prev.range) <- disease_abbrev_longer
-  # Repeats allow for correct quartile calculations
-  #point estimate set to geometric mean
-  allelic.het <- c(ah_low, ah_low, sqrt(ah_low*ah_high) %>% round(3), ah_high, ah_high)
-  # Matrix of penetrance values for allelic het range, capped at 1
-  penetrance <- pmin(1, as.vector(allelic.het %o% (named.prev/named.freqs)))
-  order(penetrance[c(F,F,T,F,F)], decreasing = T) -> ord
-  # replicate each element n times to create labels
-  penetrance_data <- data.frame("penetrance" = penetrance, "disease" =
-    factor(sapply(disease_abbrev_longer, function(x) rep(x,length(allelic.het))) %>% as.vector,
-    levels = disease_abbrev_longer[ord]) )
-  par(mar=c(4, 7, 4, 2))
-  boxplot(penetrance ~ disease, penetrance_data, horizontal = TRUE, las = 1, xlab = "Penetrance",
-          main = dataset, cex.axis = 0.7, xaxt = 'n')
-  axis(1, at = seq(0,1,0.1), breaks = seq(0,1,0.1))
-  abline(v=0.5, lty=2)
-  par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
-  penetrance_data
-}
-pen_1000g <- get_penetrance(ah_low = 0.001, ah_high = 0.5, dataset = "1000 Genomes")
-pen_exac <- get_penetrance(ah_low = 0.001, ah_high = 0.5, dataset = "ExAC")
+```{r pen_compare}
+penetrance_data <- data.frame("Disease" = disease_abbrev_longer, 
+                              "Penetrance_1000_Genomes" = pen_1000g_max$penetrance[c(F,F,T,F,F)], 
+                              "Penetrance_ExAC" = pen_exac_max$penetrance[c(F,F,T,F,F)])
+keep <- apply(penetrance_data[,2:3],1,max)!=1
+penetrance_data <- penetrance_data[keep,]
+ggplot(aes(x = Penetrance_1000_Genomes, y = Penetrance_ExAC), data = penetrance_data) + 
+  geom_point(stat = "identity", col = 'red') + ggtitle("Penetrance Means: ExAC v. 1000 Genomes") + 
+  geom_text_repel(aes(label = disease_abbrev_longer[keep]), size = 3) +
+  scale_x_continuous(limits = c(10^-6,1), trans='log10', breaks = 10^-(0:6)) + 
+  scale_y_continuous(trans='log10', breaks = 10^-(0:6))
+
+lm_compare <- lm(Penetrance_1000_Genomes ~ Penetrance_ExAC, penetrance_data)
+```
+The Pearson correlation is `r signif(cor(penetrance_data[,2], penetrance_data[,3]),2)`.  
+Max penetrance values computed using 1000 Genomes are `r signif(lm_compare$coefficients[2],2)`-fold larger than those computed using ExAC.   
 
 
-
-prev.range <- 1/doubles[,c(2,2,4,3,3)] %>% as.matrix
-#Set this to 1 rather than 0.02
-penetrance_out <- function(allelic.het) {
-  penetrance <- (allelic.het*prev.range/allele.freq$COUNT_1000G[!is.na(combined)]) %>% 
-    t %>% as.vector %>% pmin(1)
-  ord <- order(penetrance[c(F,F,T,F,F)] %>% as.vector, decreasing = T)
-  # replicate each element n times to create labels
-  penetrance_data <- data.frame("penetrance" = penetrance,
-    "disease" = factor(sapply(doubles$Disease, function(x) rep(x,5)) %>% as.vector,
-    levels = doubles$Disease[ord])
-  )
-  par(mar=c(4, 15, 4, 2))
-  boxplot(penetrance ~ disease, penetrance_data, horizontal = TRUE, las = 1, range = 0, 
-          xlab = "Penetrance", ylim = c(0,1),
-          main = paste("Penetrance Estimates for Prevalence Ranges, P(V|D) =", allelic.het))
-  abline(v=0.5, lty=2)
-  par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
-  penetrance_data
-}
-pen_ah_0.1 <- penetrance_out(0.1)
-pen_ah_1.0 <- penetrance_out(1.0)
+```{r indep, eval = F}
+rowSums(ACMG.1000g[,-front_cols])==0 -> rm.rows
+row.sub <- 1000
+ACMG.1000g[1:row.sub, -front_cols] %>% filter(!rm.rows[1:row.sub]) %>% t %>% cor -> temp
+plot(apply(temp, 1, function(x) max(x[x<1]) ))
 ```
 
 
