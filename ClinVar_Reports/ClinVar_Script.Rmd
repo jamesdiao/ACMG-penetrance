@@ -5,13 +5,14 @@ date: "November 4, 2016"
 output: pdf_document
 ---
 ```{r input, include = F}
-#Input
-date_list <- c("2012-06-16","2013-01-14","2014-02-11","2015-01-06","2016-01-04",as.character(Sys.Date()))
-# First Date: 2012-06-16
-# Last Date: Collect from Sys.Date()
 setwd("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/ClinVar_Reports")
 load("../Environ_2016-11-04")
-range = F
+#Input
+# Yearly: date_list <- c("2012-06-16","2013-01-14","2014-02-11","2015-01-06","2016-01-04",as.character(Sys.Date()))
+# First Date: 2012-06-16
+# Last Date: Collect from Sys.Date()
+date_list <- c("2012-06-16",as.character(Sys.Date()))
+range = T
 download_new <- F
 generate_new <- F
 ```
@@ -73,7 +74,8 @@ if(download_new){
 }
 ```
 
-List of dates: `r clinvar_dates`  
+**List of dates:**  
+`r clinvar_dates`  
 
 ``` {r make_reports}
 for (cv_date in clinvar_dates) {
@@ -99,7 +101,7 @@ if (any(grepl("clinvar_.*\\.vcf", system("ls", intern = T))))
 # Clear copied VCFs
 ```
 
-``` {r variant_trends, echo = F, include = T, fig.height = 3.6}
+``` {r variant_trends, echo = F, include = T, fig.height = 3.2}
 total_output <- lapply(clinvar_dates, function(cv_date) {
   load(file = sprintf("Data_Output/Report_Output_%s.RData",cv_date))
   list(pen_1000g_max, pen_exac_max, ancestry_1000g_max, ancestry_exac_max, 
@@ -116,7 +118,7 @@ sapply(total_output, function(data){
   geom_line() + geom_point() + ylab("Number of Variants") + 
   ggtitle("Number of ClinVar Variants Over Time") + 
   scale_y_continuous(breaks = seq(0,150000,10000)) +
-  theme(axis.text.x = element_text(angle = -20, hjust = 0.5))
+  theme(axis.text.x = element_text(angle = -90, hjust = 0.5, size = 8))
 
 sapply(total_output, function(data){
   c(data$merged_1000g %>% nrow,
@@ -128,8 +130,10 @@ sapply(total_output, function(data){
   geom_line() + geom_point() + ylab("Pathogenic Variants") + 
   ggtitle("Number of LP/P ClinVar Variants in Each Dataset Over Time") + 
   scale_y_continuous(breaks = seq(0,1100,100)) +
-  theme(axis.text.x = element_text(angle = -20, hjust = 0.5))
+  theme(axis.text.x = element_text(angle = -90*(length(clinvar_dates)>8)
+                                   -20*(length(clinvar_dates)<=8), hjust = 0.5, size = 8))
 ```
+Figures not to scale: dates are all equally spaced
 
 ```{r large_penetrance_plot, echo = F, include = T, fig.height = 14, fig.width = 10}
 plot_all_penetrance <- function(max_pen_series, dataset) {
@@ -138,21 +142,24 @@ plot_all_penetrance <- function(max_pen_series, dataset) {
   list_disease <- lapply(disease_abbrev_longer, function(disease) rep(disease,5)) %>% unlist
   max_pen_series$Disease <- factor(list_disease, levels = disease_abbrev_longer[ord])
   max_pen_series <- max_pen_series %>% gather(Date, Penetrance, contains("-"))
-  plot(ggplot(aes(x=Disease, y=Penetrance, fill = Date), data = max_pen_series) + 
-      geom_boxplot(position = 'dodge', coef = 0) + coord_flip() + 
-      theme(axis.text=element_text(size=12), axis.title=element_text(size=14), 
-            plot.title=element_text(size=18), legend.text=element_text(size=12),
-            legend.title=element_text(size=14)) + 
-      ggtitle(sprintf("%s Penetrance Plot Over Time", dataset)))
+  p <- ggplot(aes(x=Disease, y=Penetrance, fill = Date), data = max_pen_series) + 
+      geom_boxplot(position = 'dodge') + scale_y_continuous(breaks = seq(0,1,0.1)) +
+      coord_flip() + ggtitle(sprintf("%s Penetrance Plot Over Time", dataset))
+      theme(axis.text=element_text(size=12), axis.text.x = element_text(angle=-20, hjust=0.5),
+            axis.title=element_text(size=14), plot.title=element_text(size=20),
+            legend.title=element_text(size=14), legend.text=element_text(size=12))
+  if (length(clinvar_dates)>10)
+    p <- p + theme(legend.position="none")
+  p
 }
 
 sapply(total_output, function(data){
   data$pen_1000g_max$Penetrance
-}) %>% as.data.frame %>% plot_all_penetrance(dataset = "1000 Genomes")
+}) %>% as.data.frame %>% plot_all_penetrance(dataset = "1000 Genomes") %>% plot
 
 sapply(total_output, function(data){
   data$pen_exac_max$Penetrance
-}) %>% as.data.frame %>% plot_all_penetrance(dataset = "ExAC")
+}) %>% as.data.frame %>% plot_all_penetrance(dataset = "ExAC") %>% plot
 ```
 
 
