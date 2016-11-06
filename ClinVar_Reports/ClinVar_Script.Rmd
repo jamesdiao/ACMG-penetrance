@@ -12,7 +12,7 @@ load("../Environ_2016-11-04")
 # First Date: 2012-06-16    # Last Date: Collect from Sys.Date()
 #date_list <- c("2012-06-16", as.character(Sys.Date()))
 date_list <- c("2012-06-16","2013-01-14","2014-02-11","2015-01-06","2016-01-04",as.character(Sys.Date()))
-range = T
+range = F
 download_new <- F
 generate_new <- F
 ```
