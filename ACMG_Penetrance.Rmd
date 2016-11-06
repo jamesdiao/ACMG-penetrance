@@ -1,12 +1,12 @@
 ---
 title: "ACMG-ClinVar Penetrance RMarkdown"
 author: "James Diao, under the supervision of Arjun Manrai"
-date: "November 4, 2016"
+date: "November 6, 2016"
 output:
-  html_document:
+  pdf_document:
     number_sections: yes
     toc: yes
-  pdf_document:
+  html_document:
     number_sections: yes
     toc: yes
 geometry: margin=1in
@@ -18,7 +18,7 @@ geometry: margin=1in
 knitr::opts_chunk$set(echo = F, eval = T, cache = T, warning = F, message = F)
  setwd("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance")
 # save.image("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-11-04")
-# load("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-11-01")
+# load("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-11-04")
 # clinvar[clinvar$VAR_ID=="3_38645420_T_C",]
 ```
 
@@ -118,8 +118,8 @@ clnsig_map <- c(0:7,255,-1) %>% setNames(c("Uncertain",
 
 get_clinvar <- function(clinvar_file) {
   file.by.line <- readLines(clinvar_file)
-  file_date <- as.Date(strsplit(file.by.line[2],"=")[[1]][2], "%Y%m%d")
-  system(sprintf("mv %s ClinVar_Reports/clinvar_%s.vcf", clinvar_file, file_date))
+  #file_date <- as.Date(strsplit(file.by.line[2],"=")[[1]][2], "%Y%m%d")
+  #system(sprintf("mv %s ClinVar_Reports/clinvar_%s.vcf", clinvar_file, file_date))
   clean.lines <- file.by.line[!grepl("##.*", file.by.line)] #Remove ## comments
   clean.lines[1] <- sub('.', '', clean.lines[1]) #Remove # from header
   input <- read.table(text = paste(clean.lines, collapse = "\n"), header = T, stringsAsFactors = F, 
@@ -142,7 +142,6 @@ get_clinvar <- function(clinvar_file) {
   input$CLNDBN <- split_info("CLNDBN=")
   if (has.clndsdbid)
     input$CLNDSDBID <- split_info("CLNDSDBID=")
-  
   #CLNALLE has 0,-1,3,4 --> CLNSIG has 1,2,3,4 --> ALT has 1. 
   taking <- sapply(input$CLNALLE, function(x) x[x>0] ) #Actual elements > 0. Keep these in CLNSIG and ALT 
   taking_loc <- sapply(input$CLNALLE, function(x) which(x>0) )#Tracks locations for keeping in CLNALLE
@@ -167,8 +166,10 @@ get_clinvar <- function(clinvar_file) {
   input$CLNDBN <- col_subset("CLNDBN")
   if (has.clndsdbid)
     input$CLNDSDBID <- col_subset("CLNDSDBID")
-  
-  input <- unnest(input) %>% unite(VAR_ID, CHROM, POS, REF, ALT, sep = "_", remove = F) %>%
+  filter_condition <- input[,unlist(lapply(input, typeof))=="list"] %>% 
+    apply(1,function(row) !any(is.na(row)))
+  input <- input %>% filter(filter_condition) %>%
+    unnest %>% unite(VAR_ID, CHROM, POS, REF, ALT, sep = "_", remove = F) %>%
     select(VAR_ID, CHROM, POS, ID, REF, ALT, CLNALLE, CLNSIG, everything()) %>% 
     mutate(CLNSIG = strsplit(CLNSIG,"|",fixed = T)) %>% 
     mutate(CLNDBN = strsplit(CLNDBN,"|",fixed = T)) %>% 
@@ -856,7 +857,7 @@ To compute penetrance estimates for each of the diseases related to the ACMG-56 
 
 Data Collection: 
 1. Similar disease subtypes were grouped together (e.g., the 8 different types of familial hypertrophic cardiomyopathy), resulting in 30 disease categories across 56 genes.  
-2. The search query ???[disease name] prevalence??? was used to find articles using Google Scholar.  
+2. The search query "[disease name] prevalence" was used to find articles using Google Scholar.  
 3. Prevalence estimates were recorded along with URL, journal, region, publication year, sample size, first author, population subset (if applicable), date accessed, and potential issues. Preference was given to studies with PubMed IDs, more citations, and larger sample sizes.  
 
 Prevalence was recorded as reported: either a point estimate or a range. Values of varying quality were collected across all diseases. 
@@ -887,10 +888,8 @@ disease_abbrev_longer <- sapply(ACMG_Lit$Disease, function(d) {
 
 ## Distribution of Prevalences
 
-Later, we face the question of how to compute point estimates for penetrance, which requires a point estimate of prevalence. We decided to combine the upper and lower bounds of prevalence ranges using the geometric-mean, or log-average, because the prevalences seem to be distributed most uniformly on a logarithmic-scale.
-
-```{r distr_prev, fig.width = 10, fig.height = 5}
-par(mfrow=c(1,2), mar=c(5, 5.5, 4, 2)+0.1)
+```{r distr_prev, fig.width = 10, fig.height = 4}
+par(mfrow=c(1,2), mar=c(5, 5.5, 1, 2)+0.1)
 plot((1/mean.prev) %>% sort, 1:nrow(ACMG_Lit), 
      xlab = sprintf("Prevalence Values: (r=%s)", round(cor((1/mean.prev) %>% sort, 1:nrow(ACMG_Lit)),2)), 
      yaxt = 'n', ylab = "")
@@ -951,9 +950,7 @@ getAlleleFreq <- function(input, ind, method, dataset) {
         if (superpop!=dataset)
           find = paste(find, superpop, sep = "_")
         # Aggregation by calculation + ind assumption
-        freq <- input[loc,] %>% 
-          select(contains(find)) %>% 
-          unlist %>% as.numeric #vector of all allele frequencies
+        freq <- input[loc,find] %>% unlist %>% as.numeric #vector of all allele frequencies
         freq <- 1-(1-freq)^2 #probability of having a non-reference site at EITHER allele. 
         final <- 1-prod(1-freq[!is.na(freq)])
       } else {
@@ -993,41 +990,55 @@ cor(allele.freq) %>% as.data.frame %>% pander
 par(mfrow=c(1,2), mar=c(5, 5.5, 4, 2)+0.1)
 ggplot(aes(x = CALC_1000G, y = CALC_EXAC), data = allele.freq) + 
   geom_point(stat = "identity", col = 'red') + ggtitle("ExAC v. 1000 Genomes") + 
-  geom_text_repel(aes(label = disease_abbrev_longer)) +
+  geom_text_repel(aes(label = disease_abbrev_longer)) + 
   scale_x_continuous(limits = c(10^-5, max(allele.freq[,"CALC_EXAC"]))*5, trans='log10', breaks = 10^-(0:3)) + 
-  scale_y_continuous(limits = c(10^-5, max(allele.freq[,"CALC_EXAC"]))*5, trans='log10', breaks = 10^-(0:3)) 
-ratio_diff <- function(af_1, af_2, title) {
-  (pmax(af_1, af_2)/pmin(af_1, af_2)) %>% setNames(disease_abbrev) %>% sort -> ratio
-  ratio <- ratio[is.finite(ratio)]
-  plot(ratio, 1:length((ratio)), xlab = "Ratio (larger/smaller)", main = title, yaxt = 'n', ylab = "")
-  axis(2,at=1:length(ratio),labels=names(ratio), las = 2, cex.axis = 0.8)
-  median(ratio)
+  scale_y_continuous(limits = c(10^-5, max(allele.freq[,"CALC_EXAC"]))*5, trans='log10', breaks = 10^-(0:3)) + 
+  geom_abline(slope = 1, intercept = 0)
+ratio_diff <- function() {
+  ratio <- data.frame(Means = rowMeans(allele.freq[,-1]), 
+                     Ratio_1000G = (pmax(allele.freq$CALC_1000G, allele.freq$COUNT_1000G)/
+                                      pmin(allele.freq$CALC_1000G, allele.freq$COUNT_1000G)), 
+                     Ratio_ExAC = (pmax(allele.freq$CALC_EXAC, allele.freq$CALC_1000G)/
+                                     pmin(allele.freq$CALC_EXAC, allele.freq$CALC_1000G)), 
+                     Label = disease_abbrev_longer) %>%
+    gather(Dataset, Ratio, Ratio_1000G, Ratio_ExAC)
+  ratio <- ratio[is.finite(ratio$Ratio),]
+  ggplot(aes(x=Means, y=Ratio), data = ratio) + geom_point() + geom_text_repel(aes(label = Label)) + 
+    facet_grid(. ~ Dataset)
+  ggplot(aes(x=1:nrow(ratio), y=sort(Ratio)), data = ratio) + geom_point() + 
+    facet_grid(. ~ Dataset, scales = "free_y")
 }
-count_calc_diff <- ratio_diff(allele.freq$CALC_1000G, allele.freq$COUNT_1000G, title = "Counting v. Calculation (1000 Genomes)")
-exac_1000g_diff <- ratio_diff(allele.freq$CALC_EXAC, allele.freq$CALC_1000G, title = "1000 Genomes v. ExAC (Calculation)") %>% invisible
+ratio_diff
 par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
 ```
 
-**The median AF(disease) ratio between counting and calculation is: `r signif(count_calc_diff,4)`.**  
-**The median AF(disease) ratio between ExAC and 1000 Genomes is: `r signif(exac_1000g_diff,4)`.**  
 <br />
 
-Sampling 10000 variants from 1000 Genomes to test deviations from assuming independence. 
-```{r ind_test, fig.height = 2, fig.width = 3}
+Sampling 1000 variants from 1000 Genomes variants to test deviations from assuming independence.  
+Repeat 10 times and plot all points.  
+```{r ind_test, fig.height = 4, fig.width = 6}
 plot_ind_test <- function() {
-  set.seed(1234)
-  select_rows <- sample(nrow(ACMG.1000g),10000)
-  ind_test_data <- data.frame(COUNT = getAlleleFreq(ACMG.1000g[select_rows,], 
-                                 ind = F, method = "Gene", dataset = "1000G")$AF_1000G, 
-                              CALC = getAlleleFreq(ACMG.1000g[select_rows,], 
-                                ind = T, method = "Gene", dataset = "1000G")$AF_1000G)
-  plot(ggplot(aes(x = COUNT, y = CALC), data = ind_test_data) + geom_point())
+  set.seed(123)
+  do.call("rbind",lapply(1:10, function(x) {
+    select_rows <- sample(nrow(ACMG.1000g),1000)
+    data.frame(COUNT = getAlleleFreq(ACMG.1000g[select_rows,], 
+                 ind = F, method = "Gene", dataset = "1000G")$AF_1000G, 
+               CALC = getAlleleFreq(ACMG.1000g[select_rows,], 
+                 ind = T, method = "Gene", dataset = "1000G")$AF_1000G)
+  })) -> ind_test_data
+  plot(ggplot(aes(x = COUNT, y = CALC), data = ind_test_data) + geom_point() + 
+         scale_x_continuous(limits = c(0,1), breaks = seq(0,1,0.1)) + 
+         scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1)) + 
+         xlab("Allele Frequency (From Counting)") + ylab("Allele Frequency (From Calculation)") +
+         ggtitle("Counting v. Calculation w/ Independence From Random Sampling")
+       )
   ind_test_data
 }
 plot_ind_out <- plot_ind_test()
 ```
   
-Pearson correlation: `r signif(cor(plot_ind_out$COUNT,plot_ind_out$CALC),2)`.
+Pearson correlation: `r signif(cor(plot_ind_out$COUNT,plot_ind_out$CALC),2)`  
+Mean ratio (CALC/COUNT): `r signif(mean(plot_ind_out$CALC/plot_ind_out$COUNT, na.rm = T),3)`
 
 \newpage
 ## Penetrance as a Function of P(V|D)
@@ -1097,7 +1108,7 @@ penetrance_out <- function(allelic.het) {
   )
   plot(ggplot(aes(x=Disease, y=Penetrance), data = penetrance_data) + 
     geom_boxplot(position = 'identity', coef = 0) + coord_flip() + 
-    ggtitle(sprintf("P(V|D) = %s", allelic.het))
+    ggtitle(sprintf("1000 Genomes - P(V|D) = %s", allelic.het))
   )
   penetrance_data
 }
@@ -1154,15 +1165,17 @@ ancestry_penetrance <- function(ah_low, ah_high, dataset, range) {
   allelic.het <- c(ah_low, ah_low, sqrt(ah_low*ah_high) %>% round(3), ah_high, ah_high)
   sapply(c("Total",super.levels), function(superpop){
     # Map of disease name to disease tags
-    find <- superpop
-    if (superpop == "Total") 
-      find <- substr(dataset %>% toupper,1,4)
-    if (dataset == "1000 Genomes")
-      named.freqs <- freq_1000g.count.gene %>% select(contains(find)) %>% 
-        select(1) %>% unlist %>% setNames(disease_abbrev_longer)
-    if (dataset == "ExAC")
-      named.freqs <- freq_exac.calc.gene %>% select(contains(find)) %>% 
-        select(1) %>% unlist %>% setNames(disease_abbrev_longer)
+    if (dataset == "1000 Genomes") {
+      find <- "AF_1000G"
+      named.freqs <- freq_1000g.count.gene
+    }
+    if (dataset == "ExAC") {
+      find <- "AF_EXAC"
+      named.freqs <- freq_exac.calc.gene
+    }
+    if (superpop != "Total") 
+      find <- paste(find, superpop, sep = "_")
+    named.freqs <- named.freqs[,find] %>% unlist %>% setNames(disease_abbrev_longer)
     inv.prev_1 <- ACMG_Lit$Inverse.Prevalence.1 %>% setNames(disease_abbrev_longer)
     inv.prev_2 <- ACMG_Lit$Inverse.Prevalence.2 %>% setNames(disease_abbrev_longer)
     #Adjust ranges of point values to 5, log-averaging to the original value. 
@@ -1229,7 +1242,7 @@ ggplot(aes(x = Penetrance_1000_Genomes, y = Penetrance_ExAC), data = penetrance_
   geom_point(stat = "identity", col = 'red') + ggtitle("Penetrance Means: ExAC v. 1000 Genomes") + 
   geom_text_repel(aes(label = disease_abbrev_longer[keep]), size = 3) +
   scale_x_continuous(limits = c(10^-6,1), trans='log10', breaks = 10^-(0:6)) + 
-  scale_y_continuous(trans='log10', breaks = 10^-(0:6))
+  scale_y_continuous(trans='log10', breaks = 10^-(0:6)) + geom_smooth(method = "lm", formula=y~x-1)
 
 lm_compare <- lm(Penetrance_1000_Genomes ~ Penetrance_ExAC, penetrance_data)
 ```

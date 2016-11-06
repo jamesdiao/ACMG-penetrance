@@ -1,7 +1,7 @@
 ---
 title: "ClinVar Report"
 author: "James Diao"
-date: "November 4, 2016"
+date: "November 6, 2016"
 output:
   pdf_document:
     number_sections: yes
@@ -86,8 +86,10 @@ get_clinvar <- function(clinvar_file) {
   if (has.clndsdbid)
     input$CLNDSDBID <- col_subset("CLNDSDBID")
   
-  input <- input %>% filter(!is.na(input$ALT) & !is.na(input$CLNALLE) & 
-                            !is.na(input$CLNDBN) & !is.na(input$CLNDSDBID)) %>%
+  filter_condition <- input[,unlist(lapply(input, typeof))=="list"] %>% 
+    apply(1,function(row) !any(is.na(row)))
+  
+  input <- input %>% filter(filter_condition) %>%
     unnest %>% unite(VAR_ID, CHROM, POS, REF, ALT, sep = "_", remove = F) %>%
     select(VAR_ID, CHROM, POS, ID, REF, ALT, CLNALLE, CLNSIG, everything()) %>% 
     mutate(CLNSIG = strsplit(CLNSIG,"|",fixed = T)) %>% 
@@ -230,9 +232,7 @@ getAlleleFreq <- function(input, ind, method, dataset) {
         if (superpop!=dataset)
           find = paste(find, superpop, sep = "_")
         # Aggregation by calculation + ind assumption
-        freq <- input[loc,] %>% 
-          select(contains(find)) %>% 
-          unlist %>% as.numeric #vector of all allele frequencies
+        freq <- input[loc,find] %>% unlist %>% as.numeric #vector of all allele frequencies
         freq <- 1-(1-freq)^2 #probability of having a non-reference site at EITHER allele. 
         final <- 1-prod(1-freq[!is.na(freq)])
       } else {
