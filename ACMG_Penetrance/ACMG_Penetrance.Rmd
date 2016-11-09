@@ -862,12 +862,6 @@ Prevalence was recorded as reported: either a point estimate or a range. Values 
 colclass <- rep("character",16)
 colclass[c(5:6,10,14)] <- "numeric"
 ACMG_Lit <- read.csv(file = "Literature_Prevalence_Estimates.csv", header = TRUE, stringsAsFactors = F, na.strings = "\\N", colClasses = colclass)
-combined <- (ACMG_Lit$Inverse.Prevalence.1+ACMG_Lit$Inverse.Prevalence.2)/2
-mean.prev <- ACMG_Lit$Inverse.Prevalence.1
-mean.prev[!is.na(combined)] <- combined[!is.na(combined)]
-cat(sprintf("Table of Literature-Based Estimates of Disease Prevalence %s x %s (selected rows/columns):", nrow(ACMG_Lit), ncol(ACMG_Lit)))
-ACMG_Lit[c(4,5,8,14),] %>% remove_rownames %>% 
-  select(Gene, Disease, Disease_MIM, Tags, Inverse.Prevalence.1, Inverse.Prevalence.2, year,first.author,citations) %>% pander
 disease_abbrev <- sapply(ACMG_Lit$Disease, function(d) {
   strsplit(d," ") %>% sapply("[",ifelse(grepl("Familial",d),2,1)) %>% substr(1,9) %>% paste0("...")
 }) %>% setNames(NULL)
@@ -878,25 +872,27 @@ disease_abbrev_longer <- sapply(ACMG_Lit$Disease, function(d) {
     out <- split_out[-length(split_out)] %>% paste(collapse = " ")
   out %>% paste0("...")
 }) %>% setNames(NULL)
+combined <- (ACMG_Lit$Inverse.Prevalence.1+ACMG_Lit$Inverse.Prevalence.2)/2
+mean.prev <- ACMG_Lit$Inverse.Prevalence.1 %>% setNames(disease_abbrev_longer)
+mean.prev[!is.na(combined)] <- combined[!is.na(combined)]
+cat(sprintf("Table of Literature-Based Estimates of Disease Prevalence %s x %s (selected rows/columns):", nrow(ACMG_Lit), ncol(ACMG_Lit)))
+ACMG_Lit[c(4,5,8,14),] %>% remove_rownames %>% 
+  select(Gene, Disease, Disease_MIM, Tags, Inverse.Prevalence.1, Inverse.Prevalence.2, year,first.author,citations) %>% pander
 ```
 <br />
 
 ## Distribution of Prevalences
 
-```{r distr_prev, fig.width = 10, fig.height = 3.5}
-par(mfrow=c(1,2), mar=c(2, 5.5, 1, 2)+0.1)
-plot((1/mean.prev) %>% sort, 1:nrow(ACMG_Lit), 
-     xlab = sprintf("Prevalence Values: (r=%s)", round(cor((1/mean.prev) %>% sort, 1:nrow(ACMG_Lit)),2)), 
-     yaxt = 'n', ylab = "")
-axis(2,at=1:nrow(ACMG_Lit),labels=disease_abbrev[order(1/mean.prev)], las = 2, cex.axis = 0.8)
-plot((1/mean.prev) %>% sort, 1:nrow(ACMG_Lit), 
-     log = "x", yaxt = 'n', xaxt = 'n', ylab = "",
-     xlab = sprintf("Prevalence Values (log-scale): r=%s", round(cor(log(1/mean.prev) %>% sort, 1:nrow(ACMG_Lit)),2)))
-axis(2,at=1:nrow(ACMG_Lit),labels=disease_abbrev[order(1/mean.prev)], las = 2, cex.axis = 0.8)
-axis(1, at=10^-c(6:1), labels=10^-c(6:1))
-par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
+```{r distr_prev, fig.width = 6, fig.height = 3.5}
+data.frame(Disease = disease_abbrev_longer, 
+         Inverse_Prevalence = mean.prev %>% setNames(NULL)) %>%
+ggplot(aes(x = factor(Disease, levels = Disease[order(Inverse_Prevalence)]), y = Inverse_Prevalence)) + 
+  geom_point(stat = 'identity') + coord_flip() + xlab("Disease") + 
+  scale_y_continuous(trans='log10', breaks = 10^(0:6), 
+    labels = sapply(0:6, function(x) paste0("1",paste0(rep("0",x), collapse = "")))) +
+  theme(axis.text.y=element_text(size=7)) + 
+  ggtitle("Distribution of Inverse Prevalences (log-log scale)") + ylab("Inverse Prevalence")
 ```
-
 
 ## Collect and Aggregate Allele Frequencies at the Disease-Level
 
@@ -979,12 +975,12 @@ row.names(allele.freq) <- ACMG_Lit$Disease
 ```
 <br />
 
-```{r af_scatter, fig.width = 5, fig.height = 4}
+```{r af_scatter, fig.width = 4.5, fig.height = 3.5}
 #cor(allele.freq) %>% as.data.frame %>% pander
 par(mfrow=c(1,2), mar=c(5, 5.5, 4, 2)+0.1)
 ggplot(aes(x = CALC_1000G, y = CALC_EXAC), data = allele.freq) + 
   geom_point(stat = "identity", col = 'red') + ggtitle("Scatterplot: ExAC v. 1000 Genomes") + 
-  geom_text_repel(aes(label = disease_abbrev_longer), size = 3) + 
+  geom_text_repel(aes(label = disease_abbrev_longer), size = 2.5) + 
   scale_x_continuous(limits = c(10^-5, max(allele.freq[,"CALC_EXAC"]))*5, 
                      trans='log10', breaks = 10^-(0:3)) + 
   scale_y_continuous(limits = c(10^-5, max(allele.freq[,"CALC_EXAC"]))*5, 
@@ -1019,13 +1015,14 @@ ratio_diff()
 <br />
 
 Sampling 1000 variants from 1000 Genomes variants to test deviations from assuming independence.  
-Repeat 10 times and plot all points.  
+Repeat 10 times and plot the disease_allele frequencies (10 of each).   
 ```{r ind_test, fig.height = 3.5, fig.width = 5}
 plot_ind_test <- function() {
   set.seed(123)
   do.call("rbind",lapply(1:10, function(x) {
     select_rows <- sample(nrow(ACMG.1000g),1000)
-    data.frame(COUNT = getAlleleFreq(ACMG.1000g[select_rows,], 
+    data.frame(DISEASE = disease_abbrev_longer,
+               COUNT = getAlleleFreq(ACMG.1000g[select_rows,], 
                  ind = F, method = "Gene", dataset = "1000G")$AF_1000G, 
                CALC = getAlleleFreq(ACMG.1000g[select_rows,], 
                  ind = T, method = "Gene", dataset = "1000G")$AF_1000G)
@@ -1034,7 +1031,9 @@ plot_ind_test <- function() {
          scale_x_continuous(limits = c(0,1), breaks = seq(0,1,0.1)) + 
          scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1)) + 
          xlab("Allele Frequency (From Counting)") + ylab("Allele Frequency (From Calculation)") +
-         ggtitle("Testing Independence with Random Sampling")
+         ggtitle("Testing Independence with Random Sampling") + 
+         geom_text(aes(label = replace(DISEASE,which(abs(COUNT - CALC)<0.1), NA)), 
+                   check_overlap = T, hjust = 1, na.rm = T, size = 2.5)
        )
   ind_test_data
 }
@@ -1062,15 +1061,17 @@ get_penetrance <- function(ah_low, ah_high, dataset) {
   # Repeats allow for correct quartile calculations
   #point estimate set to arithmetic mean
   allelic.het <- c(ah_low, ah_low, mean(c(ah_low, ah_high)) %>% signif(3), ah_high, ah_high)
+  #Functions to transform data points with disease_af = 0
+  set_to_na <- function(row) { replace(row, is.infinite(row),NA) %>% pmin(1)}
   # Matrix of penetrance values for allelic het range, capped at 1
-  penetrance <- pmin(1, as.vector(allelic.het %o% (named.prev/named.freqs)))
+  penetrance <- as.vector(allelic.het %o% (named.prev/named.freqs)) %>% set_to_na()
   order(matrix(penetrance,nrow = 5) %>% colSums, decreasing = T) -> ord
   # replicate each element n times to create labels
   penetrance_data <- data.frame("Penetrance" = penetrance, "Disease" =
     factor(sapply(disease_abbrev_longer, function(x) rep(x,length(allelic.het))) %>% as.vector,
     levels = disease_abbrev_longer[ord]) )
   plot(ggplot(aes(x=Disease, y=Penetrance), data = penetrance_data) + 
-    geom_boxplot(position = 'identity', coef = 0) + coord_flip() + ggtitle(dataset)
+    geom_boxplot(position = 'identity', coef = 0, na.rm = T) + coord_flip() + ggtitle(dataset)
   )
   penetrance_data
 }
@@ -1079,8 +1080,7 @@ pen_exac <- get_penetrance(ah_low = 0.001, ah_high = 0.5, dataset = "ExAC")
 ```
 <br />
 
-Note 1: the empty black lines at 1.0 all indicate no allele frequency (disease_AF) data.  
-Disease_AF = 0 returns "infinite penetrance", which is capped at 1.  
+Note 1: the empty lines at the top all indicate no allele frequency (disease_AF) data.  
 Note 2: For breast-ovarian cancer, mean theoretical penetrance > 1. This is because the assumed allelic heterogeneity (0.25) is greater than is possible, given the empirical prevalence and allele frequencies.
 
 \newpage
@@ -1100,8 +1100,9 @@ the right end of the boxplot indicates P(D) = lower value.
 prev.range <- 1/doubles[,c(2,2,4,3,3)] %>% as.matrix
 #Set this to 1 rather than 0.02
 penetrance_out <- function(allelic.het) {
+  set_to_na <- function(row) { replace(row, is.infinite(row),NA) %>% pmin(1)}
   penetrance <- (allelic.het*prev.range/allele.freq$COUNT_1000G[!is.na(combined)]) %>% 
-    apply(2, function(col) pmin(col,1))
+    apply(2, set_to_na)
   rownames(penetrance) <- doubles$Disease
   ord <- penetrance %>% rowSums %>% order(decreasing = T)
   penetrance <- penetrance[ord,]
@@ -1112,7 +1113,7 @@ penetrance_out <- function(allelic.het) {
     levels = row.names(penetrance))
   )
   plot(ggplot(aes(x=Disease, y=Penetrance), data = penetrance_data) + 
-    geom_boxplot(position = 'identity', coef = 0) + coord_flip() + 
+    geom_boxplot(position = 'identity', coef = 0, na.rm = T) + coord_flip() + 
     ggtitle(sprintf("1000 Genomes: P(V|D) = %s", allelic.het))
   )
   penetrance_data
@@ -1146,7 +1147,9 @@ get_penetrance <- function(ah_low, ah_high, dataset, range) {
   inv.prev_2[is.na(inv.prev_2)] <- inv.prev_1[is.na(inv.prev_2)]*5
   prev_final <- data.frame(inv.prev_1, inv.prev_1, (inv.prev_1+inv.prev_2)/2, 
                              inv.prev_2, inv.prev_2)
-  penetrance <- apply(sweep(prev_final,MARGIN=2,allelic.het,`*`) / named.freqs, 1, function(row) pmin(row,1)) %>% as.data.frame %>% unlist
+  cap_at_1 <- function(row) {pmin(row,1)}
+  set_to_na <- function(row) { replace(row, is.infinite(row),NA) %>% pmin(1)}
+  penetrance <- apply(sweep(prev_final,MARGIN=2,allelic.het,`*`) / named.freqs, 1, set_to_na) %>% as.data.frame %>% unlist
   # Matrix of penetrance values for allelic het range, capped at 1
   order(matrix(penetrance,nrow = 5) %>% colSums, decreasing = T) -> ord
   # replicate each element n times to create labels
@@ -1154,7 +1157,7 @@ get_penetrance <- function(ah_low, ah_high, dataset, range) {
     factor(sapply(disease_abbrev_longer, function(x) rep(x,length(allelic.het))) %>% as.vector,
     levels = disease_abbrev_longer[ord]) )
   plot(ggplot(aes(x=Disease, y=Penetrance), data = penetrance_data) + 
-    geom_boxplot(position = 'identity', coef = 0) + coord_flip() + ggtitle(dataset))
+    geom_boxplot(position = 'identity', coef = 0, na.rm = T) + coord_flip() + ggtitle(dataset))
   penetrance_data
 }
 
@@ -1191,10 +1194,10 @@ ancestry_penetrance <- function(ah_low, ah_high, dataset, range) {
     prev_final <- data.frame(inv.prev_1, inv.prev_1, (inv.prev_1+inv.prev_2)/2, 
                              inv.prev_2, inv.prev_2)
     # Matrix of penetrance values for allelic het range, capped at 1
-    penetrance <- apply(sweep(prev_final,MARGIN=2,allelic.het,`*`) / 
-                          named.freqs, 1, function(row) pmin(row,1)) %>% as.data.frame %>% unlist
-    # replicate each element n times to create labels
-    penetrance
+    cap_at_1 <- function(row) {pmin(row,1)}
+    set_to_na <- function(row) { replace(row, is.infinite(row),NA) %>% pmin(1)}
+    (sweep(prev_final,MARGIN=2,allelic.het,`*`) / named.freqs) %>% 
+      apply(1, set_to_na) %>% as.data.frame %>% unlist
   }) %>% as.data.frame -> penetrance_init
   order(matrix(penetrance_init$Total, nrow = 5) %>% colSums, decreasing = T) -> ord
   penetrance_data <- data.frame(penetrance_init, 
@@ -1203,9 +1206,22 @@ ancestry_penetrance <- function(ah_low, ah_high, dataset, range) {
                                 levels = disease_abbrev_longer[ord]) ) %>% 
   gather(Subset, Penetrance, -Disease)
   plot(ggplot(aes(x=Disease, y=Penetrance), data = penetrance_data) + 
-    geom_boxplot(position = 'identity', coef = 0) + coord_flip() + 
-      facet_wrap(~Subset, ncol = 2) + ggtitle(sprintf("Penetrance by Ancestry (%s)", dataset)) + 
-      theme(axis.text.y=element_text(size=6), axis.text.x = element_text(angle = -20, hjust = 0.4))
+    geom_boxplot(position = 'identity', coef = 0, na.rm = T) + coord_flip() + 
+    facet_wrap(~Subset, ncol = 2) + ggtitle(sprintf("Barplot: Penetrance by Ancestry (%s)", dataset)) + 
+    theme(axis.text.y=element_text(size=6), axis.text.x = element_text(angle = -20, hjust = 0.4))
+  )
+  plot(ggplot(aes(x=Disease, y = Subset), data = penetrance_data) + coord_flip() + 
+    geom_tile(aes(fill = Penetrance), color = 'white') + xlab("Ancestry") + 
+    scale_fill_gradient(low='white',high = 'steelblue') + 
+    ggtitle(sprintf("Heatmap: Penetrance by Ancestry (%s)", dataset))
+  )
+  plot(penetrance_data[c(F,F,T,F,F),] %>% 
+    ggplot(aes(x = Subset, y = Penetrance, group = Disease, color = Disease)) + 
+    theme(legend.position = 'bottom', 
+          legend.text = element_text(size = 7),
+          legend.title = element_blank()) + 
+    geom_line(na.rm = T) + xlab("Ancestry") + 
+    ggtitle(sprintf("Parallel Coordinates: Penetrance by Ancestry (%s)", dataset))
   )
 }
 ancestry_penetrance(ah_low = 0.001, ah_high = 0.5, dataset = "1000 Genomes", range = 5)
@@ -1240,21 +1256,22 @@ par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
 ## Comparing Mean Penetrance between ExAC and 1000 Genomes
 
 ```{r pen_compare}
-penetrance_data <- data.frame("Disease" = disease_abbrev_longer, 
-                              "Penetrance_1000_Genomes" = pen_1000g_max$Penetrance[c(F,F,T,F,F)], 
-                              "Penetrance_ExAC" = pen_exac_max$Penetrance[c(F,F,T,F,F)])
-keep <- apply(penetrance_data[,2:3],1,max)!=1
-penetrance_data <- penetrance_data[keep,]
+penetrance_data <- data.frame(Disease = disease_abbrev_longer, 
+                              Penetrance_1000_Genomes = pen_1000g_max$Penetrance[c(F,F,T,F,F)], 
+                              Penetrance_ExAC = pen_exac_max$Penetrance[c(F,F,T,F,F)]) %>%
+  filter(!is.na(Penetrance_1000_Genomes) & !is.na(Penetrance_ExAC))
 ggplot(aes(x = Penetrance_1000_Genomes, y = Penetrance_ExAC), data = penetrance_data) + 
-  geom_point(stat = "identity", col = 'red') + ggtitle("Penetrance Means: ExAC v. 1000 Genomes") + 
-  geom_text_repel(aes(label = disease_abbrev_longer[keep]), size = 3) +
-  scale_x_continuous(limits = c(10^-6,1), trans='log10', breaks = 10^-(0:6)) + 
-  scale_y_continuous(trans='log10', breaks = 10^-(0:6)) + geom_smooth(method = "lm", formula=y~x-1)
-
+  geom_point(stat = "identity", col = 'red') + 
+  ggtitle("Penetrance Means: ExAC v. 1000 Genomes (log-log scale)") + 
+  geom_text_repel(aes(label = Disease), size = 3) +
+  scale_x_continuous(trans='log10', breaks = 10^-(0:6)) + 
+  scale_y_continuous(trans='log10', breaks = 10^-(0:6)) + 
+  geom_smooth(method = "lm", formula=y~x-1) + 
+  xlab("Penetrance (1000 Genomes)") + ylab("Penetrance (ExAC)")
 lm_compare <- lm(Penetrance_1000_Genomes ~ Penetrance_ExAC, penetrance_data)
 ```
 The Pearson correlation is `r signif(cor(penetrance_data[,2], penetrance_data[,3]),2)`.  
-Max penetrance values computed using 1000 Genomes are `r signif(lm_compare$coefficients[2],2)`-fold larger than those computed using ExAC.   
+Max penetrance values computed using 1000 Genomes are `r signif(lm_compare$coefficients[2],3)`-fold larger than those computed using ExAC.   
 
 <!--
  3. What fraction of people have an LP/P mutation in each disease category?
