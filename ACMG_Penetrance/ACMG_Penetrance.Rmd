@@ -20,10 +20,9 @@ knitr::opts_knit$set(root.dir = "../");
 # change echo = T for code-folding in HTML document
 knitr::opts_chunk$set(echo = F, eval = T, cache = T, warning = F, message = F)
 setwd("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance")
-# save.image("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-11-22")
-# load("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-11-22")
-# clinvar[clinvar$VAR_ID=="3_38645420_T_C",]
-rm_rs1805124 <- FALSE
+# save.image("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-11-23.RData")
+# load("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Environ_2016-11-23.RData")
+rm_rs1805124 <- FALSE # VAR_ID=="3_38645420_T_C"
 ```
 
 ```{r packages, include = F, cache = F}
@@ -936,6 +935,7 @@ if (!("AF_1000G_AFR" %in% colnames(merged_1000g))) {
 }
 front_cols <- 1:(grep("HG00096",colnames(merged_1000g))-1)
 getAlleleFreq <- function(input, ind, method, dataset) {
+  KP_only <- grepl(5,input$CLNSIG)
   if (method == "MIM") {
     search_list <- ACMG_Lit$Disease_MIM
     search_in <- "CLNDSDBID"
@@ -951,8 +951,12 @@ getAlleleFreq <- function(input, ind, method, dataset) {
   output <- sapply(search_list, function(item.vec) {
     item.vec.split <- expand(item.vec)
     loc <- rep(FALSE, nrow(input)) #loc = locations of all the "hits"
-    for(item in item.vec.split)
-      loc <- loc | grepl(item,input[,search_in], ignore.case = T)
+    for(item in item.vec.split) {
+      keep <- rep(T, nrow(input)) #Normally, take EP and KP
+      if (!grepl("EP",report[[item]])) #If we're only taking KP
+        keep <- KP_only
+      loc <- loc | (grepl(item,input[,search_in], ignore.case = T) & keep) #Take all relevant genes
+    }
     hits <- sum(loc)
     sapply(c(dataset,super.levels), function(superpop) {
       if (ind) {
@@ -1062,15 +1066,24 @@ plot_ind_test <- function() {
   #plot(ind_test_data %>% filter(COUNT>0) %>% ggplot(aes(x=pmax.int(CALC/COUNT, COUNT/CALC))) + 
   #  geom_histogram(bins = 100) + xlab("Calculation/Counting") + ylab("Histogram Counts") + xlim(0,4))
   #+ facet_wrap("DISEASE", ncol = 3))
-  plot(sapply(levels(ind_test_data$DISEASE), function(d) {
+  sapply(levels(ind_test_data$DISEASE), function(d) {
     ind_test_data %>% filter(DISEASE == d) %>% 
       mutate(DIFF = CALC-COUNT) %>% mutate(RATIO = pmax(CALC/COUNT,COUNT/CALC)) %>%
       select(RATIO) %>% unlist
-  }) %>% data.frame %>% gather(Disease, Data) %>% filter(is.finite(Data)) %>%
-    ggplot(aes(x = Disease, y = Data)) + geom_boxplot() + coord_flip() + 
-    ylab("Allele Frequency Difference: Calculation/Counting") + 
-    ggtitle("Differences in AF Methods: by Disease"))
-  cat("30 diseases x 1000 points = 30,000 points. This plot has been downsampled 10x and contains 3,000 points.")
+  }) %>% data.frame %>% gather(Disease, Data) %>% filter(is.finite(Data)) -> plot_data
+  
+  plot(plot_data %>% filter(!(Disease %in% c("Wilson","HCRC.AR","OTC"))) %>% 
+  ggplot(aes(x = Disease, y = Data)) + geom_boxplot() + coord_flip() + 
+  ylab("Allele Frequency Difference: Calculation/Counting") + 
+  ggtitle("Differences in AF Methods: by Disease"))
+  
+  plot(plot_data %>% filter(Disease %in% c("Wilson","HCRC.AR","OTC")) %>% 
+  ggplot(aes(x = Data)) + geom_histogram(bins = 100) + 
+  facet_wrap("Disease", ncol = 1, scales = "free") + 
+  xlab("Allele Frequency Difference: Calculation/Counting") + 
+  ggtitle("Differences in AF Methods: by Disease (Outliers)"))
+  
+
   plot(ggplot(aes(x = COUNT, y = CALC), data = ind_test_data[runif(nrow(ind_test_data)) < 0.1,]) +
          geom_point() + ggtitle("Testing Independence with Random Sampling") + 
          scale_x_continuous(limits = c(0,1), breaks = seq(0,1,0.1)) + 
@@ -1080,6 +1093,8 @@ plot_ind_test <- function() {
          geom_text(aes(label = replace(DISEASE,which(abs(COUNT - CALC) < 0.3), NA)), 
                    check_overlap = F, hjust = 1, na.rm = T, size = 2.5)
        )
+  cat("30 diseases x 1000 points = 30,000 points.")
+  cat("This plot has been downsampled 10x and contains 3,000 points.")
   ind_test_data %>% filter(COUNT>0)
 }
 plot_ind_out <- plot_ind_test()
@@ -1272,6 +1287,12 @@ ancestry_penetrance <- function(ah_low, ah_high, dataset, range, position) {
                                 "Disease" = factor(sapply(abbrev, 
                                 function(x) rep(x,5)) %>% as.vector,
                                 levels = abbrev[ord]) ) 
+  #m <- list(l = 170, r = 220, b = -50, t = 50, pad = 5)
+  #  heatmap <- plot_ly(
+  #    x = factor(c(super.levels,"Total"), levels = c("Total",super.levels)),
+  #    y = factor(sapply(abbrev, function(x) rep(x,5)) %>% as.vector, levels = abbrev[ord]),
+  #    z = penetrance_init[pos,][ord,] %>% as.matrix, type = "heatmap", height = 700
+  #  ) %>% layout(autosize = T, margin = m); heatmap
   # Star/Radar Plot
   temp <- penetrance_data[pos,] %>% select(-Disease, -Total)
   rownames(temp) <- abbrev
@@ -1307,6 +1328,7 @@ ancestry_penetrance <- function(ah_low, ah_high, dataset, range, position) {
 }
 ancestry_penetrance(ah_low = 0.01, ah_high = 1, dataset = "1000 Genomes", range = 5, position = "Max")
 ancestry_penetrance(ah_low = 0.01, ah_high = 1, dataset = "ExAC", range = 5, position = "Max")
+#ah_low = 0.01; ah_high = 1; dataset = "ExAC"; range = 5; position = "Max"
 ```
 
 
