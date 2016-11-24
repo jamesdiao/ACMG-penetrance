@@ -1160,7 +1160,7 @@ Note 2: For breast-ovarian cancer, mean theoretical penetrance > 1. This is beca
 #doubles <- ACMG_Lit[!is.na(combined),c("Short_Name","Inverse_Prevalence_1","Inverse_Prevalence_2")]
 doubles <- data.frame("Disease" = ACMG_Lit$Short_Name, "Inverse_Prevalence_1" = prevalence_1, "Inverse_Prevalence_2" = prevalence_2) %>% filter(!is.na(Inverse_Prevalence_2))
 doubles$Mean_Inverse_Prevalence <- apply(doubles[,-1], 1, function(row) 1/mean(1/row))
-data.frame(Disease = doubles$Disease, Prevalence_Ratio = round(doubles$Inverse_Prevalence_1/doubles$Inverse_Prevalence_2,1)) %>% arrange(Prevalence_Ratio) %>% mutate(Prevalence_Ratio = sprintf("%.1f",Prevalence_Ratio)) %>% pander
+data.frame(Disease = doubles$Disease, Prevalence_Ratio = round(doubles$Inverse_Prevalence_2/doubles$Inverse_Prevalence_1,1)) %>% arrange(Prevalence_Ratio) %>% mutate(Prevalence_Ratio = sprintf("%.1f",Prevalence_Ratio)) %>% pander
 ```
 
 The left end of the boxplot indicates P(D) = upper value,  
@@ -1250,6 +1250,7 @@ get_penetrance <- function(ah_low, ah_high, dataset, range) {
 
 pen_1000g_max <- get_penetrance(ah_low = 0.01, ah_high = 1, dataset = "1000 Genomes", range = 5)
 pen_exac_max <- get_penetrance(ah_low = 0.01, ah_high = 1, dataset = "ExAC", range = 5)
+#ah_low = 0.01; ah_high = 1; dataset = "ExAC"; range = 5
 ```
 
 Note: Prevalence ranges of 5x were assumed for all point estimates of prevalence.  
@@ -1281,7 +1282,10 @@ ancestry_penetrance <- function(ah_low, ah_high, dataset, range, position) {
     set_to_na <- function(row) { replace(row, is.infinite(row),NA) %>% pmin(1)}
     apply(prev_final*allelic.het / named.freqs, 1, set_to_na) %>% unlist
   }) %>% as.data.frame -> penetrance_init
-  
+  ### Quantifying ancestral variation
+  #temp <- penetrance_init[pos,]
+  #sort(apply(temp, 1, max, na.rm = T) - apply(temp, 1, min, na.rm = T))
+  #sort(apply(temp, 1, max, na.rm = T) / apply(temp, 1, min, na.rm = T))
   order(matrix(penetrance_init$Total, nrow = 5) %>% colSums, decreasing = T) -> ord
   penetrance_data <- data.frame(penetrance_init, 
                                 "Disease" = factor(sapply(abbrev, 

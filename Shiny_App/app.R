@@ -195,9 +195,11 @@ server <- shinyServer(function(input, output, session) {
     # Barplot
     penetrance_data <- gather(penetrance_data, Subset, Penetrance, -Disease)
     barplot <- ggplot(aes(x=Disease, y=Penetrance), data = penetrance_data) + 
-           geom_boxplot(position = 'identity', coef = 0, na.rm = T) + coord_flip() + xlab(NULL) + 
-           facet_wrap(~Subset, ncol = 2) + ggtitle(sprintf("Barplot: Penetrance by Ancestry (%s)", dataset)) + 
-           theme(axis.text.y=element_text(size=6), axis.text.x = element_text(angle = -20, hjust = 0.4))
+           geom_boxplot(position = 'identity', coef = 0, na.rm = T) + 
+           facet_wrap(~Subset, ncol = 2) + coord_flip() + xlab(NULL) + 
+           ggtitle(sprintf("Penetrance by Ancestry (%s)", dataset)) + 
+           theme(axis.text.y=element_text(size=6), 
+                 axis.text.x = element_text(angle = -20, hjust = 0.4))
     #barplot <- ggplotly(barplot, height = 800)
     # Heatmap
     #heatmap <- ggplot(aes(x=Disease, y = Subset), data = penetrance_data[pos,]) + coord_flip() + 
@@ -211,11 +213,11 @@ server <- shinyServer(function(input, output, session) {
     #       annotate("segment", y=0.5, yend=6.5, 
     #                x=c(0.5,length(abbrev)+0.5), 
     #                xend = c(0.5,length(abbrev)+0.5))
-    m <- list(l = 150, r = 150, b = -50, t = 100, pad = 5)
+    m <- list(l = 170, r = 150, b = -50, t = 100, pad = 5)
     heatmap <- plot_ly(
       x = factor(c(super.levels,"Total"), levels = c("Total",super.levels)),
       y = factor(sapply(abbrev, function(x) rep(x,5)) %>% as.vector, levels = abbrev[ord]),
-      z = penetrance_init[pos,][ord,] %>% as.matrix, type = "heatmap", height = 800
+      z = penetrance_init[pos,][ord,] %>% as.matrix %>% signif(3), type = "heatmap", height = 800
     ) %>% layout(autosize = T, margin = m, 
       title = sprintf("%s Penetrance by Ancestry (%s)", position, dataset))
     output$barplot <- renderPlot({ barplot })
