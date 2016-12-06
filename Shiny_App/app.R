@@ -23,20 +23,9 @@ load(file = "disease_level_AF.RData")
 #     super.levels, file = "disease_level_AF.RData")
 
 # Read in the given .csv
-DF <- read.csv(file = "Literature_Prevalence_Estimates.csv", 
+DF <- read.csv(file = "../Supplementary_Files/Literature_Prevalence_Estimates.csv", 
                header = TRUE, stringsAsFactors = F, na.strings = "NA") %>%
   select(Evaluate, Abbreviation, Short_Name, Inverse_Prevalence, Allelic_Heterogeneity)
-
-# javascript function for log-scale ah_range
-JS.logify <- "function logifySlider (sliderId) {
-  $('#'+sliderId).data('ionRangeSlider').update({
-  'prettify': function (num) { return (Math.pow(10, num)); }
-  })
-}"
-JS.onload <- "$(document).ready(function() {
-  setTimeout(function() {
-  logifySlider('ah_range')
-}, 5)}) "
 
 ### User Interface
 ui <- shinyUI(fluidPage(
@@ -55,10 +44,8 @@ ui <- shinyUI(fluidPage(
       ),
       wellPanel(
         h4("Allelic Heterogeneity Range"),
-        tags$head(tags$script(HTML(JS.logify))),
-        tags$head(tags$script(HTML(JS.onload))),
         sliderInput("ah_range", "Draws max and min plausible bounds", 
-                    min = -4, max = 0, value = c(-3,0), step = 1)
+                    min = 0, max = 1, value = c(0.01,1), step = 0.01)
       ),
       wellPanel(
         h4("Imputed Prevalence Range"),
@@ -136,8 +123,8 @@ server <- shinyServer(function(input, output, session) {
     freq_1000g.count <- freq_1000g.count.gene[keep,]
     freq_exac.calc <- freq_exac.calc.gene[keep,]
     finalDF <- finalDF[keep,]
-    ah_low = 10^input$ah_range[1]
-    ah_high = 10^input$ah_range[2]
+    ah_low = input$ah_range[1]
+    ah_high = input$ah_range[2]
     dataset = input$dataset
     range = input$range
     position = input$position
@@ -230,3 +217,16 @@ server <- shinyServer(function(input, output, session) {
 # Run the application 
 shinyApp(ui = ui, server = server)
 
+
+#tags$head(tags$script(HTML(JS.logify))),
+#tags$head(tags$script(HTML(JS.onload))),
+# javascript function for log-scale ah_range
+#JS.logify <- "function logifySlider (sliderId) {
+#  $('#'+sliderId).data('ionRangeSlider').update({
+# 'prettify': function (num) { return (Math.pow(10, num)); }
+#  })
+#}"
+#JS.onload <- "$(document).ready(function() {
+#  setTimeout(function() {
+#  logifySlider('ah_range')
+#}, 5)}) "
