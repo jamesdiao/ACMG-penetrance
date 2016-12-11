@@ -1,0 +1,34 @@
+---
+title: "Table 1"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+```
+
+```{r packages, include = F, cache = F}
+# Install and load all required packages
+pkg_list <- c("scrapeR","RMySQL", "knitr","pander","ggplot2","ggrepel", "tibble","curl","tidyr","dplyr")
+installed <- pkg_list %in% installed.packages()[,"Package"]
+if (!all(installed))
+  install.packages(pkg_list[!installed])
+sapply(pkg_list, require, character.only = T)
+
+panderOptions("table.alignment.rownames","left")
+panderOptions('table.alignment.default', function(df) {
+  ifelse(sapply(df, is.numeric), 'right', 'left') %>% 
+    replace(colnames(df)=="CHROM", 'right')
+})
+panderOptions("table.caption.prefix","")
+```
+
+```{r display}
+read.csv(file = "Figure_2.csv", 
+         colClasses = c("character","character","numeric","numeric","numeric","numeric")) -> temp
+temp[,3] <- 1/temp[,3]
+temp[,3:6] <- temp[,3:6] %>% signif(3) %>% format(scientific = F)
+colnames(temp)[3] <- "Prevalence"
+temp %>% pander
+
+```
