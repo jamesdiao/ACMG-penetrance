@@ -93,6 +93,7 @@ button.code-folding-btn:focus {
 </style>
 
 
+
 <div class="container-fluid main-container">
 
 <!-- tabsets -->
@@ -118,11 +119,11 @@ $(document).ready(function () {
 </div>
 
 
-<div id="paper-acmg-penetrance" class="section level1">
-<h1>2016-paper-ACMG-penetrance</h1>
-<div id="date-october-16-2016" class="section level4">
-<h4>Date: October 16, 2016</h4>
-<p>Here are some brief notes on how to run the pipeline for our 2016 paper on the penetrance of the ACMG-56. <br /> Using these commands, you should be able to completely recreate all figures in the paper.</p>
+<div id="acmg-penetrance" class="section level1">
+<h1>2017-ACMG-penetrance</h1>
+<div id="date-07-january-2017" class="section level4">
+<h4>Date: 07 January 2017</h4>
+<p>Here are some brief notes on how to run the pipeline for our 2017 project on the penetrance of the ACMG-59. <br /> Using these commands, you should be able to completely recreate all figures in the paper.</p>
 <hr />
 </div>
 <div id="software" class="section level3">
@@ -138,19 +139,82 @@ $(document).ready(function () {
 </div>
 <div id="clone-repo" class="section level3">
 <h3>CLONE REPO</h3>
-<p>Navigate to an appropriate directory and clone the source repository, which contains our Markdown scripts and data: <br /> - <code>$ git clone https://github.com/jamesdiao/2016-paper-ACMG-penetrance/</code></p>
+<p>Clone this source repository, containing our Markdown scripts and data: <br /> - <code>$ git clone https://github.com/jamesdiao/2016-paper-ACMG-penetrance/</code></p>
 <hr />
 </div>
-<div id="recreating-figures" class="section level3">
-<h3>RECREATING FIGURES</h3>
-<p>To run the code, open <code>ACMG_Penetrance.Rmd</code> and click “Knit” to compile everything into <code>ACMG_Penetrance.html</code>.</p>
-<p>There are four different ways to run the code: <br /> - <strong>Running from scratch</strong>: This is the default method. Everything will be compiled on the spot (runtime: 30-50 minutes). <br /> - <strong>Running with pre-downloaded 1000 Genomes VCFs</strong>: Unzip <code>1000G.zip</code> before knitting the .Rmd, and the program will skip the step where the VCFs are downloaded directly from 1000 Genomes. SAMtools and tabix are no longer required. (20-40 minutes) <br /> - <strong>Running with processed 1000 Genomes data frame</strong>: Unzip <code>ACMG_1000G.RData.zip</code> before knitting the .Rmd, and the program will skip the step where the VCFs are downloaded from 1000 Genomes and then unnested, processed, and imported. SAMtools and tabix are no longer required. (5-10 minutes) <br /> - <strong>Running with cached data objects</strong>: Unzip <code>ACMG_Penetrance_cache.zip</code> and <code>ACMG_Penetrance_files.zip</code> before knitting the .Rmd, and the program will use cached data objects to recreate the figures. This skips all data processing tasks and allows the figures to be generated immediately (identical to those in the included .html). SAMtools and tabix are no longer required. (&lt;1 minute) <br /> <br /></p>
-<p>All 4 procedures give the same results, which should all be identical to <code>ACMG_Penetrance.html</code></p>
+<div id="recreating-figures-for-acmg-penetrance" class="section level3">
+<h3>RECREATING FIGURES FOR ACMG-PENETRANCE</h3>
+<ol style="list-style-type: decimal">
+<li>Navigate to the directory <code>/ACMG_Penetrance/</code>.<br />
+</li>
+<li>Open <code>/ACMG_Penetrance/ACMG_Penetrance.Rmd</code>.<br />
+</li>
+<li>Click “Knit” to compile everything into <code>/ACMG_Penetrance/ACMG_Penetrance.html</code>.</li>
+</ol>
+<p>There are four different ways to run the code: <br /> - <strong>Running from scratch</strong>: This is the default method. Everything will be compiled on the spot (runtime: 30-50 minutes). <br /> - <strong>Running with pre-downloaded 1000 Genomes VCFs</strong>: Unzip <code>1000G.zip</code> before knitting the .Rmd, and the program will skip the step where the VCFs are downloaded directly from 1000 Genomes. SAMtools and tabix are no longer required. (20-40 minutes) <br /> - <strong>Running with processed 1000 Genomes data frame</strong>: Unzip <code>/ACMG_Penetrance/ACMG_1000G.rds.zip</code> before knitting the .Rmd, and the program will skip the step where the VCFs are downloaded from 1000 Genomes and then unnested, processed, and imported. SAMtools and tabix are no longer required. (5-10 minutes) <br /> - <strong>Running with cached data objects</strong>: Unzip <code>/ACMG_Penetrance/ACMG_Penetrance_cache.zip</code> and <code>/ACMG_Penetrance/ACMG_Penetrance_files.zip</code> before knitting the .Rmd, and the program will use cached data objects to recreate the figures. This skips all data processing tasks and allows the figures to be generated immediately (identical to those in the included .html). SAMtools and tabix are no longer required. (&lt;1 minute) <br /> <br /></p>
+<p>All 4 procedures give the same results, which should all be identical to <code>/ACMG_Penetrance/ACMG_Penetrance.html</code></p>
 <hr />
 </div>
-<div id="supplementary-files" class="section level3">
-<h3>SUPPLEMENTARY FILES</h3>
-<p><code>Environ_2016-10-16</code> contains all relevant data objects retained in the environment after running all code chunks. Loading this into memory allows you to modify and execute individual code chunks in the .Rmd file. <br /> <code>ACMG_Lit_Small.csv</code> contains all prevalence estimates for ACMG-56 related diseases from the medical literature. <br /> <strong>Processed_Files</strong> contains the key data frames used in the analysis as plain text (csv or tab-delimited). Key modifications from raw data are described in the .Rmd file. <br /> - <code>ACMG_1000G_Processed.csv</code> contains info for all variants found in ACMG-56 genes in the 1000 Genomes cohort. <br /> - <code>ACMG_ExAC_Processed.csv</code> contains info for all variants found in ACMG-56 genes in the ExAC cohort. <br /> - <code>ClinVar_Processed.csv</code> contains info for all variants in the ClinVar VCF. <br /> <strong>Temp_Files</strong> contains intermediary files generated while executing the script. <br /> - <code>ACMG-56_Panel.txt</code> contains the names of the ACMG-56 genes. <br /> - <code>clinvar_[date].vcf</code> contains the raw ClinVar VCF from the ClinVar FTP from that particular date. <br /> - <code>phase3map</code> contains the ancestral population of each of the 2,504 individuals in 1000 Genomes. <br /></p>
+<div id="recreating-figures-for-clinvar_reports" class="section level3">
+<h3>RECREATING FIGURES FOR CLINVAR_REPORTS</h3>
+<ol style="list-style-type: decimal">
+<li>Navigate to the directory <code>/ClinVar_Reports/</code>.</li>
+<li>Edit input parameters loaded from <code>ClinVar_Parameters.txt</code>. <br /> More readme details in the file header.</li>
+<li>Open <code>/ClinVar_Reports/ClinVar_Script.Rmd</code> and click “Knit”.<br />
+</li>
+</ol>
+<ul>
+<li>Individual reports for each date will be generated and saved in <code>\ClinVar_Reports\Reports</code>.<br />
+</li>
+<li>All reports will be combined into a final report in <code>/ClinVar_Reports/ClinVar_Penetrance.html</code>.</li>
+</ul>
+<hr />
+</div>
+<div id="description-of-filesfolders" class="section level3">
+<h3>DESCRIPTION OF FILES/FOLDERS</h3>
+<ol style="list-style-type: decimal">
+<li><strong>1000G.zip</strong> contains all VCF files collected from 1000 Genomes, saved as comma-separated values. Unzipping this allows <code>ACMG_Penetrance.Rmd</code> to skip the step where the VCFs are downloaded, processed, and imported.</li>
+<li><strong>ACMG_Penetrance/</strong> contains all files needed to generate <code>ACMG_Penetrance.html</code>. <br /></li>
+<li><strong>ClinVar_Reports/</strong> contains all files needed to generate <code>ACMG_Penetrance.html</code>. <br /> <code>Environ_[date]</code> contains all relevant data objects retained in the environment from after running all code chunks (from given [date]). Loading this into memory allows you to modify and execute individual code chunks in the .Rmd file. <br /></li>
+<li><strong>ExAC/</strong> contains all VCF files collected from ExAC, saved as comma-separated values.<br />
+</li>
+<li><strong>gnomAD/</strong> contains all VCF files collected from gnomAD, saved as comma-separated values.<br />
+</li>
+<li><strong>Key_Figures/</strong> contains the following:<br />
+</li>
+</ol>
+<ul>
+<li><code>Figure_0.pdf</code>: Barplot of Min/Point/Max Penetrance (using gnomAD)</li>
+<li><code>Figure_1.pdf</code>: Heatmap of Max Penetrance by Ancestry (using gnomAD)</li>
+<li><code>Table_1.csv</code>: CSV table documenting population parameters for each disease. Columns include: Phenotype, GeneReviews, Prevalence, Case Allele Frequency (CAF), Population Allele Frequency (PAF), Max_Penetrance.</li>
+<li><code>Table_1.pdf</code>: Same as <code>Table_1.csv</code>, but pander-formatted and saved as pdf.</li>
+<li><code>Table_1.Rmd</code>: Code used to generate <code>Table_1.pdf</code> from <code>Table_1.csv</code>.</li>
+</ul>
+<ol start="7" style="list-style-type: decimal">
+<li><strong>Shiny_App</strong> contains the app (and dependencies) that allows users to generate <code>Figure_0.pdf</code> and <code>Figure_1.pdf</code> for custom inputs.</li>
+<li><strong>Supplementary_Files/</strong> contains the following input files and intermediary files. <br /></li>
+</ol>
+<ul>
+<li><code>ACMG_SF_v2.0.txt</code> contains the table from pages 4-5 of the Kalia et al. paper establishing ACMG SD v2.0. <br /></li>
+<li><code>clinvar_result_[date].txt</code> contains the table downloaded from the ClinVar website matched by the search query: <br />“(APC[GENE] OR MYH11[GENE]… OR WT1[GENE]) AND (clinsig_pathogenic[prop] OR clinsig_likely_pathogenic[prop])”. <br /></li>
+<li><code>cvquery_hg19_[date].bed</code> contains chromosomal locations of all variants in hg19 (as given by ClinVar). Ex: “chr1 17349110 17349111.”<br />
+</li>
+<li><code>cvquery_hg38_[date].bed</code> contains chromosomal locations of all variants in hg38 (converted by liftOver).</li>
+<li><code>download_output.txt</code> contains the most recent output from downloading of VCFs from 1000 Genomes. It lists the selected transcription region and associated chromosomal locations for all genes.</li>
+<li><code>ind_test.rds</code> contains the output of 1000 trials, each sampling 1000 variants from 1000 Genomes. This was used to evaluate independence assumptions across genes.</li>
+<li><code>Literature_Prevalence_Estimates.csv</code> contains all prevalence estimates for ACMG-59 related diseases from the medical literature. Sources, quoted sections, phenotype, abbreviations, inheritance mode, and reporting guidelines are listed in additional columns. <br /></li>
+<li><code>phase3map.txt</code> contains the ancestral population of each of the 2,504 individuals in 1000 Genomes. <br /></li>
+<li><code>query_input.txt</code> contains the search query used to collected <code>clinvar_result_[date].txt</code>. Line 1 is the query itself; line 2 is the generated URL. Only line 2 will give results (due to the size of the query).</li>
+</ul>
+<ol start="9" style="list-style-type: decimal">
+<li><strong>Supplementary_Files/Processed_Files/</strong> contains the key data frames used in the analysis as plain text (csv or tab-delimited). Key modifications from raw data are described in the .Rmd file. <br /></li>
+</ol>
+<ul>
+<li><code>ACMG_1000G.csv.zip</code> contains info for all variants found in ACMG-59 genes in the 1000 Genomes cohort. <br /></li>
+<li><code>ACMG_ExAC.csv.zip</code> contains info for all variants found in ACMG-59 genes in the ExAC cohort. <br /></li>
+<li><code>ACMG_gnomAD.csv.zip</code> contains info for all variants found in ACMG-59 genes in the gnomAD cohort. <br /></li>
+<li><code>ClinVar_Processed.txt.zip</code> contains info for all variants in the ClinVar VCF. <br /></li>
+</ul>
 <hr />
 </div>
 <div id="contact" class="section level3">
@@ -171,6 +235,7 @@ $(document).ready(function () {
 $(document).ready(function () {
   $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
 });
+
 
 </script>
 

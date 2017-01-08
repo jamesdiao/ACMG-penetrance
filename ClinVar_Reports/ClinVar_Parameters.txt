@@ -1,0 +1,17 @@
+### ClinVar_Parameters
+###
+### There are 4 parameters that go into ClinVar_Script. 
+### (A) date_list (string vector): dates that you want. 
+### (B) range (logical): TRUE: take all dates between the earliest and latest date in date_list. FALSE: take only the individual dates (if they exist).
+### (C) download_new (logical): TRUE: redownloads all files from the ClinVar website. FALSE: uses pre-downloaded files in ClinVar_Reports/VCF
+### (D) generate_new (logical): TRUE: generates new reports for all dates before outputting final report. FALSE: uses previously generated reports from /ClinVar_Reports/Data_Output to output final report.
+###
+### EXAMPLES FOR DATE_LIST
+### Yearly: c("2012-06-16","2013-01-14","2014-02-11","2015-01-06","2016-01-04",as.character(Sys.Date()))
+### First Date: 2012-06-16
+### Last Date: Collect from Sys.Date()
+###
+date_list = c("2012-06-16","2013-01-14","2014-02-11","2015-01-06","2016-01-04",as.character(Sys.Date()))
+range = FALSE
+download_new = FALSE
+generate_new = FALSE

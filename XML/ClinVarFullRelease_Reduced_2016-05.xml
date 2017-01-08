@@ -1,0 +1,495 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ReleaseSet Dated="2016-05-02" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Type="full" xsi:noNamespaceSchemaLocation="http://ftp.ncbi.nlm.nih.gov/pub/clinvar/xsd_public/clinvar_public_1.34.xsd">
+
+<ClinVarSet ID="6973966">
+  <RecordStatus>current</RecordStatus>
+  <Title>NM_001195794.1(CLRN1):c.567T&gt;G (p.Tyr189Ter) AND Usher syndrome, type 3</Title>
+  <ReferenceClinVarAssertion DateCreated="2012-08-13" DateLastUpdated="2015-06-27" ID="62145">
+    <ClinVarAccession Acc="RCV000004642" Version="3" Type="RCV" DateUpdated="2015-06-28"/>
+    <RecordStatus>current</RecordStatus>
+    <ClinicalSignificance DateLastEvaluated="2015-06-24">
+      <ReviewStatus>criteria provided, single submitter</ReviewStatus>
+      <Description>Pathogenic</Description>
+    </ClinicalSignificance>
+    <Assertion Type="variation to disease"/>
+    <AttributeSet>
+      <Attribute Type="ModeOfInheritance" integerValue="263">Autosomal recessive inheritance</Attribute>
+      <XRef ID="11483565" DB="Laboratory for Molecular Medicine, Partners HealthCare Personalized Medicine"/>
+    </AttributeSet>
+    <ObservedIn>
+      <Sample>
+        <Origin>germline</Origin>
+        <Species TaxonomyId="9606">human</Species>
+        <AffectedStatus>not provided</AffectedStatus>
+      </Sample>
+      <Method>
+        <MethodType>clinical testing</MethodType>
+      </Method>
+      <Method>
+        <MethodType>literature only</MethodType>
+      </Method>
+      <ObservedData ID="6557764">
+        <Attribute integerValue="2" Type="NumFamiliesWithVariant"/>
+      </ObservedData>
+      <ObservedData ID="6557764">
+        <Attribute Type="Description">not provided</Attribute>
+      </ObservedData>
+      <ObservedData ID="6557764">
+        <Attribute Type="Description">Fields et al. (2002) demonstrated that the Fin(major) USH3A mutation in exon 3 of the USH3A gene, which had been identified by Joensuu et al. (2001) as 300C-T (TYR100TER), should be referred to as 528T-G, resulting in a tyr176-to-ter substitution. Joensuu et al. (2001) had identified homozygosity for this mutation in a Finnish family segregating Usher syndrome type IIIA (USH3A; 276902) and found it in a further 52 Finnish patients. Fields et al. (2002) found this mutation in 11 of 28 mutated alleles from affected individuals of Finnish and other northern European ancestry.</Attribute>
+        <Citation Type="general">
+          <ID Source="PubMed">11524702</ID>
+        </Citation>
+        <Citation Type="general">
+          <ID Source="PubMed">12145752</ID>
+        </Citation>
+      </ObservedData>
+      <ObservedData ID="6557764">
+        <Attribute integerValue="3" Type="VariantAlleles"/>
+      </ObservedData>
+    </ObservedIn>
+    <MeasureSet Type="Variant" ID="4392">
+      <Measure Type="single nucleotide variant" ID="19431">
+        <Name>
+          <ElementValue Type="Preferred">NM_001195794.1(CLRN1):c.567T&gt;G (p.Tyr189Ter)</ElementValue>
+        </Name>
+        <AttributeSet>
+          <Attribute Type="AlleleFrequency">0.000076887590</Attribute>
+          <XRef DB="dbSNP" ID="121908140"/>
+          <XRef DB="NHLBI GO Exome Sequencing Project (ESP)" ID="ESP6500SI-V2" URL="http://evs.gs.washington.edu/EVS/"/>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS, coding" Change="c.528T&gt;G">NM_174878.2:c.528T&gt;G</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS, coding, RefSeq" Change="c.*142T&gt;G">NM_001256819.1:c.*142T&gt;G</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS, coding, RefSeq" Change="c.300T&gt;G">NM_052995.2:c.300T&gt;G</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS, coding, RefSeq" Change="c.567T&gt;G">NM_001195794.1:c.567T&gt;G</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS, genomic, RefSeqGene" Change="g.49893T&gt;G">NG_009168.1:g.49893T&gt;G</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS, genomic, top level" Change="g.150928107A&gt;C" integerValue="38">NC_000003.12:g.150928107A&gt;C</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS, genomic, top level, previous" Change="g.150645894A&gt;C" integerValue="37">NC_000003.11:g.150645894A&gt;C</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS, non-coding" Change="n.1009T&gt;G">NR_046380.2:n.1009T&gt;G</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS, previous" Change="n.1010T&gt;G">NR_046380.1:n.1010T&gt;G</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS, protein">p.Tyr176X</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS, protein, RefSeq" Change="p.Tyr100Ter">NP_443721.1:p.Tyr100Ter</Attribute>
+          <XRef Type="rs" ID="121908140" DB="dbSNP"/>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS, protein, RefSeq" Change="p.Tyr176Ter">NP_777367.1:p.Tyr176Ter</Attribute>
+          <XRef Type="rs" ID="121908140" DB="dbSNP"/>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS, protein, RefSeq" Change="p.Tyr189Ter">NP_001182723.1:p.Tyr189Ter</Attribute>
+          <XRef Type="rs" ID="121908140" DB="dbSNP"/>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="Location">NM_174878.2:EXON 3</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="MolecularConsequence">3 prime UTR variant</Attribute>
+          <XRef ID="SO:0001624" DB="Sequence Ontology"/>
+          <XRef ID="NM_001256819.1:c.*142T&gt;G" DB="RefSeq"/>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="MolecularConsequence">nonsense</Attribute>
+          <XRef ID="SO:0001587" DB="Sequence Ontology"/>
+          <XRef ID="NM_001195794.1:c.567T&gt;G" DB="RefSeq"/>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="MolecularConsequence">non-coding transcript variant</Attribute>
+          <XRef ID="SO:0001619" DB="Sequence Ontology"/>
+          <XRef ID="NR_046380.2:n.1009T&gt;G" DB="RefSeq"/>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="ProteinChange1LetterCode">Y176*</Attribute>
+          <XRef Type="Allelic variant" ID="606397.0001" DB="OMIM"/>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="ProteinChange1LetterCode">Y100*</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="ProteinChange1LetterCode">Y189*</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="ProteinChange3LetterCode">TYR176TER</Attribute>
+          <XRef Type="Allelic variant" ID="606397.0001" DB="OMIM"/>
+        </AttributeSet>
+        <CytogeneticLocation>3q25.1</CytogeneticLocation>
+        <SequenceLocation Assembly="GRCh38" AssemblyAccessionVersion="GCF_000001405.26" AssemblyStatus="current" Chr="3" Accession="NC_000003.12" start="150928107" stop="150928107" display_start="150928107" display_stop="150928107" variantLength="1" referenceAllele="A" alternateAllele="C"/>
+        <SequenceLocation Assembly="GRCh37" AssemblyAccessionVersion="GCF_000001405.25" AssemblyStatus="previous" Chr="3" Accession="NC_000003.11" start="150645894" stop="150645894" display_start="150645894" display_stop="150645894" variantLength="1" referenceAllele="A" alternateAllele="C"/>
+        <MeasureRelationship Type="variant in gene">
+          <Name>
+            <ElementValue Type="Preferred">clarin 1</ElementValue>
+          </Name>
+          <Symbol>
+            <ElementValue Type="Preferred">CLRN1</ElementValue>
+          </Symbol>
+          <SequenceLocation Assembly="GRCh38" AssemblyAccessionVersion="GCF_000001405.26" AssemblyStatus="current" Chr="3" Accession="NC_000003.12" start="150918910" stop="150973019" display_start="150918910" display_stop="150973019" variantLength="46837" Strand="-"/>
+          <SequenceLocation Assembly="GRCh37" AssemblyAccessionVersion="GCF_000001405.25" AssemblyStatus="previous" Chr="3" Accession="NC_000003.11" start="150643949" stop="150690785" display_start="150643949" display_stop="150690785" variantLength="46837" Strand="-"/>
+          <XRef ID="7401" DB="Gene"/>
+          <XRef Type="MIM" ID="606397" DB="OMIM"/>
+        </MeasureRelationship>
+        <XRef Type="Allelic variant" ID="606397.0001" DB="OMIM"/>
+        <XRef Type="rs" ID="121908140" DB="dbSNP"/>
+      </Measure>
+      <Name>
+        <ElementValue Type="Preferred">NM_001195794.1(CLRN1):c.567T&gt;G (p.Tyr189Ter)</ElementValue>
+      </Name>
+    </MeasureSet>
+    <TraitSet Type="Disease" ID="1209">
+      <Trait ID="5092" Type="Disease">
+        <Name>
+          <ElementValue Type="Preferred">Usher syndrome, type 3</ElementValue>
+          <XRef ID="Usher+syndrome%2C+type+3/7326" DB="Genetic Alliance"/>
+          <XRef ID="5442" DB="Office of Rare Diseases"/>
+        </Name>
+        <Name>
+          <ElementValue Type="Alternate">Usher Syndrome, Type III</ElementValue>
+        </Name>
+        <Name>
+          <ElementValue Type="Alternate">USHER SYNDROME, TYPE IIIA</ElementValue>
+          <XRef Type="MIM" ID="276902" DB="OMIM"/>
+          <XRef Type="Allelic variant" ID="606397.0002" DB="OMIM"/>
+          <XRef Type="Allelic variant" ID="606397.0007" DB="OMIM"/>
+          <XRef Type="Allelic variant" ID="606397.0001" DB="OMIM"/>
+          <XRef Type="Allelic variant" ID="606397.0004" DB="OMIM"/>
+          <XRef Type="Allelic variant" ID="606397.0005" DB="OMIM"/>
+          <XRef Type="Allelic variant" ID="606397.0003" DB="OMIM"/>
+          <XRef Type="Allelic variant" ID="606397.0008" DB="OMIM"/>
+          <XRef Type="Allelic variant" ID="606397.0006" DB="OMIM"/>
+        </Name>
+        <Name>
+          <ElementValue Type="Alternate">Usher syndrome, type 3A</ElementValue>
+        </Name>
+        <Symbol>
+          <ElementValue Type="Preferred">USH3</ElementValue>
+          <XRef Type="MIM" ID="276902" DB="OMIM"/>
+          <XRef ID="5442" DB="Office of Rare Diseases"/>
+        </Symbol>
+        <Symbol>
+          <ElementValue Type="Alternate">USH3A</ElementValue>
+          <XRef Type="MIM" ID="276902" DB="OMIM"/>
+          <XRef ID="5442" DB="Office of Rare Diseases"/>
+        </Symbol>
+        <AttributeSet>
+          <Attribute Type="age of onset">Neonatal/infancy</Attribute>
+          <XRef ID="886" DB="Orphanet"/>
+          <XRef ID="231183" DB="Orphanet"/>
+        </AttributeSet>
+        <Citation Type="Translational/Evidence-based" Abbrev="EuroGenetest, 2011">
+          <ID Source="PubMed">21697857</ID>
+        </Citation>
+        <XRef ID="C1568248" DB="MedGen"/>
+        <XRef ID="231183" DB="Orphanet"/>
+        <XRef ID="886" DB="Orphanet"/>
+        <XRef Type="MIM" ID="276902" DB="OMIM"/>
+      </Trait>
+    </TraitSet>
+  </ReferenceClinVarAssertion>
+  <ClinVarAssertion ID="24816">
+    <ClinVarSubmissionID localKey="606397.0001_USHER SYNDROME, TYPE IIIA" submitter="OMIM" submitterDate="2015-06-24" title="CLRN1, TYR176TER_USHER SYNDROME, TYPE IIIA"/>
+    <ClinVarAccession Acc="SCV000024816" Version="2" Type="SCV" OrgID="3" DateUpdated="2015-06-27"/>
+    <RecordStatus>current</RecordStatus>
+    <ClinicalSignificance DateLastEvaluated="2015-06-24">
+      <ReviewStatus>no assertion criteria provided</ReviewStatus>
+      <Description>Pathogenic</Description>
+    </ClinicalSignificance>
+    <Assertion Type="variation to disease"/>
+    <ExternalID DB="OMIM" ID="606397.0001" Type="Allelic variant"/>
+    <ObservedIn>
+      <Sample>
+        <Origin>germline</Origin>
+        <Species>human</Species>
+        <AffectedStatus>not provided</AffectedStatus>
+      </Sample>
+      <Method>
+        <MethodType>literature only</MethodType>
+      </Method>
+      <ObservedData>
+        <Attribute Type="Description">Fields et al. (2002) demonstrated that the Fin(major) USH3A mutation in exon 3 of the USH3A gene, which had been identified by Joensuu et al. (2001) as 300C-T (TYR100TER), should be referred to as 528T-G, resulting in a tyr176-to-ter substitution. Joensuu et al. (2001) had identified homozygosity for this mutation in a Finnish family segregating Usher syndrome type IIIA (USH3A; 276902) and found it in a further 52 Finnish patients. Fields et al. (2002) found this mutation in 11 of 28 mutated alleles from affected individuals of Finnish and other northern European ancestry.</Attribute>
+        <Citation>
+          <ID Source="PubMed">12145752</ID>
+        </Citation>
+        <Citation>
+          <ID Source="PubMed">11524702</ID>
+        </Citation>
+        <XRef DB="OMIM" ID="276902" Type="MIM"/>
+      </ObservedData>
+    </ObservedIn>
+    <MeasureSet Type="Variant">
+      <Measure Type="Variation">
+        <Name>
+          <ElementValue Type="Preferred">CLRN1, TYR176TER</ElementValue>
+        </Name>
+        <AttributeSet>
+          <Attribute Type="NonHGVS">TYR176TER</Attribute>
+        </AttributeSet>
+        <MeasureRelationship Type="variant in gene">
+          <Symbol>
+            <ElementValue Type="Preferred">CLRN1</ElementValue>
+          </Symbol>
+        </MeasureRelationship>
+        <XRef DB="OMIM" ID="606397.0001" Type="Allelic variant"/>
+      </Measure>
+    </MeasureSet>
+    <TraitSet Type="Disease">
+      <Trait Type="Disease">
+        <Name>
+          <ElementValue Type="Preferred">USHER SYNDROME, TYPE IIIA</ElementValue>
+        </Name>
+      </Trait>
+    </TraitSet>
+  </ClinVarAssertion>
+  <ClinVarAssertion ID="366075" SubmissionName="LMM_all.variants_NCBI_3.16.2013">
+    <ClinVarSubmissionID localKey="11483565|OMIM:276902" submitter="Laboratory for Molecular Medicine,Partners HealthCare Personalized Medicine" submitterDate="2015-01-29"/>
+    <ClinVarAccession Acc="SCV000203992" Version="1" Type="SCV" OrgID="21766" DateUpdated="2015-01-30"/>
+    <RecordStatus>current</RecordStatus>
+    <ClinicalSignificance DateLastEvaluated="2014-01-02">
+      <ReviewStatus>classified by single submitter</ReviewStatus>
+      <Description>Pathogenic</Description>
+      <Citation>
+        <ID Source="PubMed">11524702</ID>
+      </Citation>
+      <Comment>The Tyr176X variant in CLRN1 has been previously identified in 52 homozygous and 2 compound heterozygous individuals with Usher syndrome type III (Joensuu 2001). This variant has been identified in 1/8,600 European American chromosomes by the NHLBI Exome Sequencing Project (http://evs.gs.washington.edu/EVS/; dbSNP rs121908140). Although this variant has been seen in the general population, its frequency is low enough to be consistent with a recessive carrier frequency. This nonsense variant leads to a premature termination codon at position 176, which is predicted to lead to a truncated or absent protein. In summary, this variant meets our criteria to be classified as pathogenic in a recessive manner for Usher syndrome (http://pcpgm.partners.org/LMM).</Comment>
+    </ClinicalSignificance>
+    <Assertion Type="variation to disease"/>
+    <ExternalID DB="Laboratory for Molecular Medicine (Partners HealthCare Personalized Medicine)" ID="11483565"/>
+    <AttributeSet>
+      <Attribute Type="ModeOfInheritance">Autosomal recessive inheritance</Attribute>
+    </AttributeSet>
+    <ObservedIn>
+      <Sample>
+        <Origin>germline</Origin>
+        <Species TaxonomyId="9606">human</Species>
+        <AffectedStatus>not provided</AffectedStatus>
+        <FamilyData NumFamiliesWithVariant="2"/>
+      </Sample>
+      <Method>
+        <MethodType>clinical testing</MethodType>
+      </Method>
+      <ObservedData>
+        <Attribute Type="VariantAlleles" integerValue="3"/>
+      </ObservedData>
+    </ObservedIn>
+    <MeasureSet Type="Variant">
+      <Measure Type="Variation">
+        <Name>
+          <ElementValue Type="Alternate">NM_174878.2:c.528T&gt;G</ElementValue>
+        </Name>
+        <Name>
+          <ElementValue Type="Alternate">p.Tyr176X</ElementValue>
+        </Name>
+        <AttributeSet>
+          <Attribute Type="Location">NM_174878.2:EXON 3</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS">NC_000003.11:g.150645894A&gt;C</Attribute>
+        </AttributeSet>
+        <SequenceLocation Assembly="GRCh37" Chr="3" alternateAllele="C" referenceAllele="A" start="150645894" stop="150645894" variantLength="1"/>
+        <MeasureRelationship Type="variant in gene">
+          <Symbol>
+            <ElementValue Type="Preferred">CLRN1</ElementValue>
+          </Symbol>
+        </MeasureRelationship>
+        <XRef DB="dbSNP" ID="121908140" Type="rsNumber"/>
+      </Measure>
+    </MeasureSet>
+    <TraitSet Type="Disease">
+      <Trait Type="Disease">
+        <Name>
+          <ElementValue Type="Preferred">Usher syndrome, type 3A</ElementValue>
+        </Name>
+        <XRef DB="OMIM" ID="276902" Type="MIM"/>
+      </Trait>
+    </TraitSet>
+  </ClinVarAssertion>
+</ClinVarSet>
+
+<ClinVarSet ID="7073335">
+  <RecordStatus>current</RecordStatus>
+  <Replaces>RCV000022762</Replaces>
+  <Title>NM_003041.3(SLC5A2):c.127-16C&gt;A AND Familial renal glucosuria</Title>
+  <ReferenceClinVarAssertion DateCreated="2012-08-13" DateLastUpdated="2015-06-29" ID="80264">
+    <ClinVarAccession Acc="RCV000022761" Version="25" Type="RCV" DateUpdated="2015-07-01"/>
+    <RecordStatus>current</RecordStatus>
+    <ClinicalSignificance DateLastEvaluated="2011-05-02">
+      <ReviewStatus>no assertion criteria provided</ReviewStatus>
+      <Description>Pathogenic</Description>
+    </ClinicalSignificance>
+    <Assertion Type="variation to disease"/>
+    <ObservedIn>
+      <Sample>
+        <Origin>germline</Origin>
+        <Species TaxonomyId="9606">human</Species>
+        <AffectedStatus>not provided</AffectedStatus>
+      </Sample>
+      <Method>
+        <MethodType>literature only</MethodType>
+      </Method>
+      <ObservedData ID="6645573">
+        <Attribute Type="Description">In a Chinese patient with autosomal recessive renal glucosuria (233100), Yu et al. (2011) identified compound heterozygosity for 2 mutations in the SLC5A2 gene: a C-to-A transversion in intron 1, resulting in the deletion of exon 3, and a 1435C-G transversion, resulting in an arg479-to-gly (R479G; 182381.0005) substitution in a highly conserved residue. Neither mutation was found in 110 control chromosomes. The unaffected parents were each heterozygous for 1 of the mutations. In vitro functional expression studies in HEK293 cells showed that neither mutant protein localized properly to the cell membrane and glucose transport activity was significantly decreased compared to wildtype. The splice site mutation retained about 25% residual transport activity, and the R479G mutation retained about 30% residual transport activity. Renal biopsy from this patient showed showed no glomerular or tubulointerstitial lesions, but there was decreased expression of SGLT2 in the apical side of the proximal convoluted tubule compared to controls.</Attribute>
+        <Citation Type="general">
+          <ID Source="PubMed">21165652</ID>
+        </Citation>
+      </ObservedData>
+    </ObservedIn>
+    <MeasureSet Type="Variant" ID="29880">
+      <Measure Type="single nucleotide variant" ID="38835">
+        <Name>
+          <ElementValue Type="Preferred">NM_003041.3(SLC5A2):c.127-16C&gt;A</ElementValue>
+        </Name>
+        <AttributeSet>
+          <Attribute Type="GlobalMinorAlleleFrequency">0.0002(T)</Attribute>
+          <XRef DB="dbSNP" ID="398122801"/>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS, coding, RefSeq" Change="c.127-16C&gt;A">NM_003041.3:c.127-16C&gt;A</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS, genomic, RefSeqGene" Change="g.6540C&gt;A">NG_012892.1:g.6540C&gt;A</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS, genomic, top level" Change="g.31484657C&gt;A" integerValue="38">NC_000016.10:g.31484657C&gt;A</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="HGVS, genomic, top level, previous" Change="g.31495978C&gt;A" integerValue="37">NC_000016.9:g.31495978C&gt;A</Attribute>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="MolecularConsequence">intron variant</Attribute>
+          <XRef ID="SO:0001627" DB="Sequence Ontology"/>
+          <XRef ID="NM_003041.3:c.127-16C&gt;A" DB="RefSeq"/>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="nucleotide change">IVS1AS, C-A, -16</Attribute>
+          <XRef Type="Allelic variant" ID="182381.0004" DB="OMIM"/>
+        </AttributeSet>
+        <CytogeneticLocation>16p11.2</CytogeneticLocation>
+        <SequenceLocation Assembly="GRCh38" AssemblyAccessionVersion="GCF_000001405.26" AssemblyStatus="current" Chr="16" Accession="NC_000016.10" start="31484657" stop="31484657" display_start="31484657" display_stop="31484657" variantLength="1" referenceAllele="C" alternateAllele="A"/>
+        <SequenceLocation Assembly="GRCh37" AssemblyAccessionVersion="GCF_000001405.25" AssemblyStatus="previous" Chr="16" Accession="NC_000016.9" start="31495978" stop="31495978" display_start="31495978" display_stop="31495978" variantLength="1" referenceAllele="C" alternateAllele="A"/>
+        <MeasureRelationship Type="variant in gene">
+          <Name>
+            <ElementValue Type="Preferred">solute carrier family 5 (sodium/glucose cotransporter), member 2</ElementValue>
+          </Name>
+          <Symbol>
+            <ElementValue Type="Preferred">SLC5A2</ElementValue>
+          </Symbol>
+          <SequenceLocation Assembly="GRCh38" AssemblyAccessionVersion="GCF_000001405.26" AssemblyStatus="current" Chr="16" Accession="NC_000016.10" start="31482534" stop="31490769" display_start="31482534" display_stop="31490769" variantLength="7653" Strand="+"/>
+          <SequenceLocation Assembly="GRCh37" AssemblyAccessionVersion="GCF_000001405.25" AssemblyStatus="previous" Chr="16" Accession="NC_000016.9" start="31494438" stop="31502090" display_start="31494438" display_stop="31502090" variantLength="7653" Strand="+"/>
+          <XRef ID="6524" DB="Gene"/>
+          <XRef Type="MIM" ID="182381" DB="OMIM"/>
+        </MeasureRelationship>
+        <Citation Type="general">
+          <ID Source="PubMed">21165652</ID>
+        </Citation>
+        <XRef Type="Allelic variant" ID="182381.0004" DB="OMIM"/>
+        <XRef Type="rs" ID="398122801" DB="dbSNP"/>
+      </Measure>
+      <Name>
+        <ElementValue Type="Preferred">NM_003041.3(SLC5A2):c.127-16C&gt;A</ElementValue>
+      </Name>
+    </MeasureSet>
+    <TraitSet Type="Disease" ID="3516">
+      <Trait ID="4085" Type="Disease">
+        <Name>
+          <ElementValue Type="Preferred">Familial renal glucosuria</ElementValue>
+          <XRef ID="Familial+renal+glucosuria/8405" DB="Genetic Alliance"/>
+          <XRef ID="226309007" DB="SNOMED CT"/>
+        </Name>
+        <Name>
+          <ElementValue Type="Alternate">Glycosuria, Renal</ElementValue>
+        </Name>
+        <Name>
+          <ElementValue Type="Alternate">RENAL GLUCOSURIA, AUTOSOMAL DOMINANT</ElementValue>
+          <XRef Type="Allelic variant" ID="182381.0006" DB="OMIM"/>
+        </Name>
+        <Symbol>
+          <ElementValue Type="Preferred">GLYS1</ElementValue>
+          <XRef Type="MIM" ID="233100" DB="OMIM"/>
+        </Symbol>
+        <AttributeSet>
+          <Attribute Type="ModeOfInheritance" integerValue="263">Autosomal recessive inheritance</Attribute>
+          <XRef Type="MIM" ID="233100" DB="OMIM"/>
+          <XRef ID="GTR000260645" DB="Synlab MVZ Humane Genetik München"/>
+        </AttributeSet>
+        <AttributeSet>
+          <Attribute Type="age of onset">Variable</Attribute>
+          <XRef ID="69076" DB="Orphanet"/>
+        </AttributeSet>
+        <XRef ID="2759" DB="Gene"/>
+        <XRef ID="C0017980" DB="MedGen"/>
+        <XRef ID="69076" DB="Orphanet"/>
+        <XRef Type="MIM" ID="233100" DB="OMIM"/>
+      </Trait>
+    </TraitSet>
+  </ReferenceClinVarAssertion>
+  <ClinVarAssertion ID="49306">
+    <ClinVarSubmissionID localKey="182381.0004_RENAL GLUCOSURIA" submitter="OMIM" submitterDate="2011-05-02" title="SLC5A2, IVS1AS, C-A, -16_RENAL GLUCOSURIA"/>
+    <ClinVarAccession Acc="SCV000044050" Version="1" Type="SCV" OrgID="3" DateUpdated="2015-06-27"/>
+    <RecordStatus>current</RecordStatus>
+    <ClinicalSignificance DateLastEvaluated="2011-05-02">
+      <ReviewStatus>no assertion criteria provided</ReviewStatus>
+      <Description>Pathogenic</Description>
+    </ClinicalSignificance>
+    <Assertion Type="variation to disease"/>
+    <ExternalID DB="OMIM" ID="182381.0004" Type="Allelic variant"/>
+    <ObservedIn>
+      <Sample>
+        <Origin>germline</Origin>
+        <Species>human</Species>
+        <AffectedStatus>not provided</AffectedStatus>
+      </Sample>
+      <Method>
+        <MethodType>literature only</MethodType>
+      </Method>
+      <ObservedData>
+        <Attribute Type="Description">In a Chinese patient with autosomal recessive renal glucosuria (233100), Yu et al. (2011) identified compound heterozygosity for 2 mutations in the SLC5A2 gene: a C-to-A transversion in intron 1, resulting in the deletion of exon 3, and a 1435C-G transversion, resulting in an arg479-to-gly (R479G; 182381.0005) substitution in a highly conserved residue. Neither mutation was found in 110 control chromosomes. The unaffected parents were each heterozygous for 1 of the mutations. In vitro functional expression studies in HEK293 cells showed that neither mutant protein localized properly to the cell membrane and glucose transport activity was significantly decreased compared to wildtype. The splice site mutation retained about 25% residual transport activity, and the R479G mutation retained about 30% residual transport activity. Renal biopsy from this patient showed showed no glomerular or tubulointerstitial lesions, but there was decreased expression of SGLT2 in the apical side of the proximal convoluted tubule compared to controls.</Attribute>
+        <Citation>
+          <ID Source="PubMed">21165652</ID>
+        </Citation>
+        <XRef DB="OMIM" ID="233100" Type="MIM"/>
+      </ObservedData>
+    </ObservedIn>
+    <MeasureSet Type="Variant">
+      <Measure Type="Variation">
+        <Name>
+          <ElementValue Type="Preferred">SLC5A2, IVS1AS, C-A, -16</ElementValue>
+        </Name>
+        <AttributeSet>
+          <Attribute Type="NonHGVS">IVS1AS, C-A, -16</Attribute>
+        </AttributeSet>
+        <MeasureRelationship Type="variant in gene">
+          <Symbol>
+            <ElementValue Type="Preferred">SLC5A2</ElementValue>
+          </Symbol>
+        </MeasureRelationship>
+        <XRef DB="OMIM" ID="182381.0004" Type="Allelic variant"/>
+      </Measure>
+    </MeasureSet>
+    <TraitSet Type="Disease">
+      <Trait Type="Disease">
+        <Name>
+          <ElementValue Type="Preferred">RENAL GLUCOSURIA</ElementValue>
+        </Name>
+      </Trait>
+    </TraitSet>
+  </ClinVarAssertion>
+</ClinVarSet>
+
+</ReleaseSet>
