@@ -1,0 +1,133 @@
+---
+title: "ClinVar Report"
+author: "James Diao"
+date: "January 8, 2017"
+output:
+  pdf_document:
+    number_sections: yes
+    toc: yes
+  html_document:
+    number_sections: yes
+    toc: yes
+geometry: margin=1in
+---
+
+**Sourcing ClinVar input from**: `r clinvar_file`  
+**Sending output to**: `r paste0("Report_", cv_date, ".pdf")`  
+
+```{r setup, include = F}
+knitr::opts_chunk$set(echo = F, eval = T, warning = F, message = F, include = T)
+#clinvar_file <- "clinvar_2014-03-03.vcf"
+# save.image("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Environ_2016-11-04")
+# load("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Environ_2016-11-04")
+# use_clinvar <- NULL # Specify a path to a clinvar VCF file. NULL means download new from ClinVar FTP. 
+# use_clinvar <- "ClinVar_Reports/clinvar_2016-10-04.vcf"
+```
+
+\newpage
+# Collect and Merge ClinVar Data
+
+## Import ClinVar VCF
+
+```{r clinvar, fig.width = 10}
+invisible(Sys.setlocale('LC_ALL','C') )
+clinvar <- get_clinvar(clinvar_file)
+#clinvar[duplicated(clinvar$VAR_ID),1:8]
+clinvar <- clinvar[!duplicated(clinvar$VAR_ID),]
+```
+<br />
+
+## Merge ClinVar with 1000 Genomes and ExAC
+
+```{r print_merge_details, fig.height=4}
+merged_1000g <- merge_clinvar_1000g() # From clinvar and ACMG.1000g
+
+inter <- intersect(clinvar$VAR_ID[clinvar$INTERP], ACMG.exac$VAR_ID)
+merged_exac <- cbind(clinvar[(clinvar$VAR_ID %in% inter),] %>% arrange(VAR_ID), 
+  ACMG.exac %>% select(VAR_ID, contains("AF_"), GENE) %>% 
+    filter(VAR_ID %in% inter) %>% arrange(VAR_ID) %>% select(-VAR_ID)
+  ) %>% select(VAR_ID, GENE, AF_EXAC, contains("AF_"), everything())
+
+inter <- intersect(clinvar$VAR_ID[clinvar$INTERP], ACMG.gnomad$VAR_ID)
+merged_gnomad <- cbind(clinvar[(clinvar$VAR_ID %in% inter),] %>% arrange(VAR_ID), 
+  ACMG.gnomad %>% select(VAR_ID, contains("AF_"), GENE) %>% 
+    filter(VAR_ID %in% inter) %>% arrange(VAR_ID) %>% select(-VAR_ID)
+  ) %>% select(VAR_ID, GENE, AF_GNOMAD, contains("AF_"), everything())
+
+cat("Breakdown of ClinVar Variants")
+data.frame(Subset_ClinVar = c("Total ClinVar","LP/P","ACMG LP/P",
+  "ACMG LP/P in gnomAD", "ACMG LP/P in ExAC","ACMG LP/P in 1000 Genomes"),
+   Number_of_Variants = c(nrow(clinvar), 
+                          sum(clinvar$INTERP), 
+                          sum(apply(clinvar[clinvar$INTERP,], 1, is.acmg)), 
+                          nrow(merged_gnomad),
+                          nrow(merged_exac), 
+                          nrow(merged_1000g))) %>% pander
+breakdown("gnomAD")
+breakdown("ExAC")
+breakdown("1000G")
+
+```
+<br />
+
+\newpage
+# Summary Statistics
+
+## Fraction of Individuals with Pathogenic Non-Reference Sites
+
+```{r frac_var_1000g, fig.height = 4}
+var_plot_1000g(pathogenic = T, frac = T)
+```
+
+```{r frac_var_gnomad, fig.height = 4}
+var_plot_exac("gnomAD", pathogenic = T, frac = T)
+```
+
+\newpage
+# Penetrance Estimates
+
+```{r disease_afs}
+front_cols <- 1:(grep("HG00096",colnames(merged_1000g))-1)
+freq_1000g.count.gene <- getAlleleFreq(input = merged_1000g, ind = F, dataset = "1000G")
+freq_1000g.calc.gene <- getAlleleFreq(input = merged_1000g, ind = T, dataset = "1000G")
+freq_gnomad.calc.gene <- getAlleleFreq(input = merged_gnomad, ind = T, dataset = "GNOMAD")
+freq_exac.calc.gene <- getAlleleFreq(input = merged_exac, ind = T, dataset = "EXAC")
+allele.freq <- data.frame(
+                   COUNT_1000G = freq_1000g.count.gene$AF_1000G, 
+                   CALC_1000G = freq_1000g.calc.gene$AF_1000G, 
+                   CALC_GNOMAD = freq_gnomad.calc.gene$AF_GNOMAD,
+                   CALC_EXAC = freq_exac.calc.gene$AF_EXAC
+  )
+row.names(allele.freq) <- abbrev_all
+```
+<br />
+
+## Max/Min Penetrance as a Function of P(D) and P(V|D)
+
+The left end of the boxplot indicates P(V|D) = 0.01,  
+the bold line in the middle indicates P(V|D) = point value,  
+the right end of the boxplot indicates P(V|D) = 1.  
+
+```{r max_values}
+if (nrow(allele.freq)==nrow(ACMG_Lit_Full))
+  allele.freq <- allele.freq[ACMG_Lit_Full$Evaluate,]
+pen_gnomad <- get_penetrance(ah_low = 0.01, ah_high = 1, dataset = "gnomAD")
+```
+
+Note: Some diseases have mean theoretical penetrance = 1 because the assumed allelic heterogeneity is greater than is possible, given the observed prevalence and allele frequencies.
+
+## Penetrance Estimates by Ancestry
+
+```{r penetrance_by_ancestry, fig.height = 8.5}
+ancestry_gnomad <- ancestry_penetrance(ah_low = 0.01, ah_high = 1, dataset = "gnomAD", range = 5, position = "Max")
+```
+
+```{r save_files}
+save(pen_gnomad, ancestry_gnomad, merged_1000g, merged_gnomad, clinvar, 
+     file = sprintf("Data_Output/Report_Output_%s.RData",cv_date))
+```
+
+
+
+
+

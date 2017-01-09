@@ -1,0 +1,175 @@
+---
+title: "ClinVar Time-Series Analysis"
+author: "James Diao"
+date: "January 8, 2017"
+output: pdf_document
+geometry: margin=1in
+---
+
+```{r setup_overall, include=FALSE}
+knitr::opts_chunk$set(echo = F, eval = T, warning = F, message = F, include = F)
+
+# Install and load all required packages
+pkg_list <- c("scrapeR","RMySQL", "knitr","markdown","rmarkdown","stringr",
+              "pander","ggplot2","ggrepel", "tibble","curl","tidyr","dplyr")
+installed <- pkg_list %in% installed.packages()[,"Package"]
+if (!all(installed))
+  install.packages(pkg_list[!installed])
+sapply(pkg_list, require, character.only = T)
+op <- par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1) # Default plotting parameters
+# Table display parameters using pander
+panderOptions("table.alignment.rownames","left")
+panderOptions('table.alignment.default', function(df) ifelse(sapply(df, is.numeric), 'right', 'left'))
+panderOptions("table.caption.prefix","")
+```
+
+```{r input, include = F}
+#setwd("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/ClinVar_Reports")
+contents <- system("ls ../", intern = T)
+load(file = sprintf("../%s",contents[grepl("Environ",contents)]))
+
+params = "ClinVar_Parameters.txt"
+if (params %in% system("ls", intern = T)) {
+  byline <- readLines(params)
+  byline <- byline[!grepl("###",byline)]
+  for (line in byline)
+    eval(parse(text=line))
+} else {
+  #Input
+   #Yearly: c("2012-06-16","2013-01-14","2014-02-11","2015-01-06","2016-01-04",as.character(Sys.Date()))
+  # First Date: 2012-06-16    # Last Date: Collect from Sys.Date()
+  #date_list <- c("2012-06-16", as.character(Sys.Date()))
+  #date_list <- c("2012-06-16","2013-01-14","2014-02-11","2015-01-06","2016-01-04",as.character(Sys.Date()))
+  range = F
+  download_new <- F
+  generate_new <- F
+}
+
+```
+
+``` {r get_dates}
+get_date_list <- function() {
+  clinvar_reports <- system("ls Archive_Tables", intern = T)
+  clinvar_reports <- clinvar_reports[grep(".tsv",clinvar_reports)]
+  do.call("rbind", lapply(clinvar_reports, function(tsv) {
+    read.table(file = sprintf("Archive_Tables/%s", tsv), sep = "\t", 
+               header = T, stringsAsFactors = F)
+  })) -> archive
+  regmatches(archive$Name,regexpr("^File:clinvar_(20.{6})\\.vcf\\.gz$",archive$Name)) %>% 
+    str_extract("20.{6}") %>% as.Date(format = "%Y%m%d") %>% c(Sys.Date())
+}
+all_dates <- get_date_list()
+
+get_dates <- function(date_list, range) {
+  date_list <- date_list %>% as.Date()
+  if (!exists("all_dates"))
+    all_dates <- get_date_list()
+  if (range) {
+    keep <- between(all_dates, min(date_list), max(date_list))
+  } else {
+    keep <- all_dates %in% date_list
+  }
+  all_dates[keep] %>% as.character()
+}
+clinvar_dates <- get_dates(date_list, range)
+```
+
+```{r download_clinvar}
+if(download_new){
+  for (cv_date in clinvar_dates) {
+    url <- sprintf("ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/archive/%s/clinvar_%s.vcf.gz",
+              substr(cv_date,1,4), gsub("-","",cv_date))
+    if (cv_date == Sys.Date()) 
+      url <- "ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar.vcf.gz"
+    clinvar_file <- sprintf("VCF/clinvar_%s.vcf.gz", cv_date)
+    download.file(method = "internal", destfile = clinvar_file, url = url)
+  }
+}
+```
+
+**List of dates:**  
+`r clinvar_dates`  
+
+``` {r make_reports}
+for (cv_date in clinvar_dates) {
+  # If required to generate new, or if the report is missing,
+  if (generate_new | !(sprintf("Report_%s.pdf",cv_date) %in% 
+                      system("ls Reports", intern = T)))
+  {
+    # Find file (this is input to ClinVar_Report.Rmd!)
+    clinvar_file <- sprintf("clinvar_%s.vcf", cv_date)
+    # Copy into the main folder
+    system(sprintf("cp VCF/clinvar_%s.vcf.gz .", cv_date))
+    # Gunzip the VCF
+    system(sprintf("gunzip clinvar_%s.vcf.gz", cv_date))
+    # Render the markdown
+    rmarkdown::render(input = "ClinVar_Report.Rmd", 
+           output_format = "pdf_document",
+           output_file = paste0("Report_", cv_date, ".pdf"),
+           output_dir = "Reports/")
+  }
+}
+if (any(grepl("clinvar_.*\\.vcf", system("ls", intern = T))))
+  system("rm clinvar_*.vcf*")
+# Clear copied VCFs
+```
+
+``` {r variant_trends, echo = F, include = T, fig.height = 3.2}
+total_output <- lapply(clinvar_dates, function(cv_date) {
+  load(file = sprintf("Data_Output/Report_Output_%s.RData",cv_date))
+  list(pen_gnomad, ancestry_gnomad, merged_1000g, merged_gnomad, clinvar) %>% 
+    setNames(c("pen_gnomad","ancestry_gnomad","merged_1000g","merged_gnomad","clinvar"))
+}) %>% setNames(clinvar_dates)
+
+sapply(total_output, function(data){
+  c(sum(data$clinvar$INTERP), nrow(data$clinvar)) %>% setNames(c("Pathogenic","Total"))
+}) %>% t %>% data.frame(Date = clinvar_dates) %>% 
+  gather(Subset, Number_of_Variants, Pathogenic, Total) %>%
+  ggplot(aes(x = Date, y = Number_of_Variants, color = Subset, group = Subset)) + 
+  geom_line() + geom_point() + ylab("Number of Variants") + 
+  ggtitle("Number of ClinVar Variants Over Time") + 
+  scale_y_continuous(breaks = seq(0,200000,10000)) +
+  theme(axis.text.x = element_text(angle = -90, hjust = 0.5, size = 8))
+
+sapply(total_output, function(data){
+  c(data$merged_1000g %>% nrow,
+  data$merged_gnomad %>% nrow) %>% setNames(c("Variants.1000_Genomes", "Variants.gnomAD"))
+}) %>% t %>% data.frame(Date = clinvar_dates) %>% 
+  gather(Dataset, Number_of_Variants, Variants.1000_Genomes, Variants.gnomAD) %>%
+  mutate(Dataset = Dataset %>% strsplit(".", fixed = T) %>% sapply("[",2)) %>%
+  ggplot(aes(x=Date, y=Number_of_Variants, color = Dataset, group = Dataset)) + 
+  geom_line() + geom_point() + ylab("Pathogenic Variants") + 
+  ggtitle("Number of LP/P ClinVar Variants in Each Dataset Over Time") + 
+  scale_y_continuous(breaks = seq(0,2000,100)) +
+  theme(axis.text.x = element_text(angle = -90*(length(clinvar_dates)>8)
+                                   -20*(length(clinvar_dates)<=8), hjust = 0.5, size = 8))
+```
+Figures not to scale: dates are all equally spaced
+
+```{r large_penetrance_plot, echo = F, include = T, fig.height = 14, fig.width = 10}
+plot_all_penetrance <- function(max_pen_series, dataset) {
+  ord <- order(rowSums(max_pen_series)[c(T,F,F,F,F)] + 
+    rowSums(max_pen_series)[c(F,F,T,F,F)] + rowSums(max_pen_series)[c(F,F,F,F,T)], decreasing = T)
+  list_disease <- lapply(abbrev, function(disease) rep(disease,5)) %>% unlist
+  max_pen_series$Disease <- factor(list_disease, levels = abbrev[ord])
+  max_pen_series <- max_pen_series %>% gather(Date, Penetrance, contains("-"))
+  p <- ggplot(aes(x=Disease, y=Penetrance, fill = Date), data = max_pen_series) + 
+      geom_boxplot(position = 'dodge') + scale_y_continuous(breaks = seq(0,1,0.1)) +
+      coord_flip() + ggtitle(sprintf("%s Penetrance Plot Over Time", dataset))
+      theme(axis.text=element_text(size=12), axis.text.x = element_text(angle=-20, hjust=0.5),
+            axis.title=element_text(size=14), plot.title=element_text(size=20),
+            legend.title=element_text(size=14), legend.text=element_text(size=12))
+  if (length(clinvar_dates)>10)
+    p <- p + theme(legend.position="none")
+  p
+}
+
+sapply(total_output, function(data){
+  data$pen_gnomad$Penetrance
+}) %>% as.data.frame %>% plot_all_penetrance(dataset = "gnomAD") %>% plot
+
+```
+
+
+
+
