@@ -1,6 +1,6 @@
 #title: "ACMG-ClinVar Penetrance Shiny App"
 #author: "James Diao, under the supervision of Arjun Manrai"
-#date: "December 7, 2016"
+#date: "January 8, 2017"
 
 # Set working directory to file folder
 outdir <- getSrcDirectory(function(dummy) {dummy})
@@ -18,9 +18,11 @@ sapply(pkg_list, require, character.only = T)
 
 # load allele frequencies and other info
 # setwd("/Users/jamesdiao/Documents/Kohane_Lab/2016-paper-ACMG-penetrance/Shiny_App")
+super.levels <- c("AFR", "AMR", "EAS", "EUR", "SAS")
 load(file = "disease_level_AF.RData")
-#save(freq_1000g.calc.gene, freq_1000g.count.gene, freq_exac.calc.gene, 
-#     freq_gnomad.calc.gene, super.levels, file = "disease_level_AF.RData")
+#save(freq_1000g.calc.gene, freq_1000g.count.gene, 
+#     freq_exac.calc.gene, freq_gnomad.calc.gene, 
+#     file = "disease_level_AF.RData")
 
 # Read in the given .csv
 DF <- read.csv(file = "../Supplementary_Files/Literature_Prevalence_Estimates.csv", 

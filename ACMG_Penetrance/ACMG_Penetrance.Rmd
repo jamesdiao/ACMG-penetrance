@@ -1,7 +1,7 @@
 ---
 title: "ACMG-ClinVar Penetrance RMarkdown"
 author: "James Diao, under the supervision of Arjun Manrai"
-date: "January 8, 2016"
+date: "January 9, 2016"
 output:
   html_document:
     code_folding: hide
@@ -24,8 +24,8 @@ rm_rs1805124 <- TRUE # VAR_ID=="3_38645420_T_C"
 
 ```{r testing, eval = F}
 setwd("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance")
-#save.image("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Environ_2017-01-07.RData")
-load("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Environ_2017-01-07.RData")
+#save.image("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Environ_2017-01-09.RData")
+load("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Environ_2017-01-09.RData")
 ```
 
 ```{r packages, include = F, cache = F}
@@ -974,23 +974,28 @@ The frequencies across the relevant variants can be aggregated in two ways:
 <br />  
 
 ```{r disease_afs}
+sample_size <- list()
+sample_size$Cohort_1000G <- table(map$super_pop) %>% as.numeric %>% setNames(super.levels) %>% c("1000G"=2504)
+sample_size$Cohort_EXAC <- c("AFR"=5203,"AMR"=5789,"EAS"=4327,
+                              "EUR"=3307+33370,"SAS"=8256,"EXAC"=60252)
+sample_size$Cohort_GNOMAD <- c("AFR"=12942,"AMR"=18237,"EAS"=9472,
+                               "EUR"=5081+13046+63416,"SAS"=15450,"GNOMAD"=137644)
+
 aggregateCalc <- function(input, superpop, item, dataset, loc) {
   find = sprintf("AF_%s",toupper(dataset))
-  if (superpop!=dataset)
+  if (superpop!=dataset) 
     find = paste(find, superpop, sep = "_")
   # Aggregation by calculation + ind assumption
   freq <- input[loc,find] %>% unlist %>% as.numeric #vector of all allele frequencies
   if (sum(freq, na.rm = T)==0) { # prob after 0 obs using Laplace's rule of succession.
-    freq <- 1/(2+2*(2504*(dataset == "1000G") + 
-                    60706*(dataset == "EXAC") + 
-                    141352*(dataset == "GNOMAD") ))
+    freq <- 1/(2+2*sample_size[[paste0("Cohort_",dataset)]][superpop])
   } else {
     if (inheritance[item] == "AR")
-      freq <- freq^2 #AR: prob of having a non-reference site at BOTH alleles
+      freq <- freq^2       #AR: prob of having a non-reference site at BOTH alleles
     if (inheritance[item] %in% c("AD","SD"))
       freq <- 1-(1-freq)^2 #AD/SD: prob of having a non-reference site at EITHER allele
     if (inheritance[item] == "XL")
-      freq <- freq #XL: prob of having a non-reference site at ONE allele (male)
+      freq <- freq         #XL: prob of having a non-reference site at ONE allele (male)
     freq <- 1-prod(1-freq[!is.na(freq)]) # prob of having a non-reference site in 1 chrom
   }
   return(freq)
@@ -1012,7 +1017,7 @@ aggregateCount <- function(input, superpop, item, dataset, loc) {
   }
   freq <- mean(apply(reduced_input, 2, function(col) any(col>=1)))
   if (freq==0) 
-    freq <- 1/(2+2*2504)
+    freq <- 1/(2+2*sample_size[["Cohort_1000G"]][superpop])
   return(freq)
 }
 
@@ -1055,6 +1060,15 @@ allele.freq <- data.frame(
                    CALC_EXAC = freq_exac.calc.gene$AF_EXAC
   )
 row.names(allele.freq) <- abbrev_all
+save(freq_1000g.calc.gene, freq_1000g.count.gene, 
+     freq_exac.calc.gene, freq_gnomad.calc.gene, 
+     file = "Shiny_App/disease_level_AF.RData")
+af_files <- c("freq_1000g.count.gene","freq_1000g.calc.gene","freq_gnomad.calc.gene","freq_exac.calc.gene")
+lapply(af_files, function(file) {
+  write.csv(eval(parse(text=file)), 
+            file = sprintf("Supplementary_Files/Processed_Files/%s.csv",file))
+}) %>% invisible
+write.csv(allele.freq, file = sprintf("Supplementary_Files/Processed_Files/freq.all.gene.csv",file))
 ```
 <br />
 
@@ -1330,7 +1344,7 @@ lm_compare <- lm(Penetrance_1000_Genomes ~ Penetrance_gnomAD, penetrance_data)
 #The Pearson correlation is `r signif(cor(penetrance_data[,2], penetrance_data[,3]),2)`.  
 #Max penetrance values computed using 1000 Genomes are `r signif(lm_compare$coefficients[2],3)`-fold larger than those computed using gnomAD.
 
-# rm(temp, ah_high, ah_low, clinvar_date, clinvar_count, gene, dataset, colormap, k, installed,num_na, pkg_list, x)
+#rm(temp, ah_high, ah_low, clinvar_date, clinvar_count, gene, dataset, colormap, k, installed,num_na, pkg_list, x)
 ```
 
 

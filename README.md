@@ -1,6 +1,6 @@
 # 2017-ACMG-penetrance
 
-#### Date: 08 January 2017
+#### Date: 09 January 2017
 
 Here are some brief notes on how to run the pipeline for our 2017 project on the penetrance of the ACMG-59. <br />
 Using these commands, you should be able to completely recreate all figures in the paper.
@@ -95,6 +95,7 @@ More readme details in the file header.
  - `ACMG_ExAC.csv.zip` contains info for all variants found in ACMG-59 genes in the ExAC cohort. <br />
  - `ACMG_gnomAD.csv.zip` contains info for all variants found in ACMG-59 genes in the gnomAD cohort. <br />
  - `ClinVar_Processed.txt.zip` contains info for all variants in the ClinVar VCF. <br />
+ - `freq_[dataset].[method].gene.csv` contains the disease-level allele frequencies computed in each population. 
 
 -----------------------------------------------------------------
 
