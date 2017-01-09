@@ -7,11 +7,11 @@
 ### (D) generate_new (logical): TRUE: generates new reports for all dates before outputting final report. FALSE: uses previously generated reports from /ClinVar_Reports/Data_Output to output final report.
 ###
 ### EXAMPLES FOR DATE_LIST
-### Yearly: c("2012-06-16","2013-01-14","2014-02-11","2015-01-06","2016-01-04",as.character(Sys.Date()))
-### First Date: 2012-06-16
+### Yearly: c("2012-06-16","2013-01-14","2014-02-11","2015-01-06","2016-01-04","2017-01-04")
+### First Date: "2012-06-16"
 ### Last Date: Collect from Sys.Date()
 ###
-date_list = c("2012-06-16","2013-01-14","2014-02-11","2015-01-06","2016-01-04",as.character(Sys.Date()))
-range = FALSE
+date_list = c("2012-06-16","2013-01-14","2014-02-11","2015-01-06","2016-01-04","2017-01-04")
+range = TRUE
 download_new = FALSE
 generate_new = FALSE

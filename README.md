@@ -23,36 +23,35 @@ Note: SAMtools and tabix are only required for the downloading step. Using zippe
 ### CLONE REPO
 
 Clone this source repository, containing our Markdown scripts and data: <br />
-- `$ git clone https://github.com/jamesdiao/2016-paper-ACMG-penetrance/`
+- `$ git clone https://github.com/jamesdiao/2017-ACMG-penetrance.git`
 
 
 -------------------------------------------------------------
 
 ### RECREATING FIGURES FOR ACMG-PENETRANCE
 
-1. Navigate to the directory `/ACMG_Penetrance/`.  
-2. Open `/ACMG_Penetrance/ACMG_Penetrance.Rmd`.  
-3. Click "Knit" to compile everything into `/ACMG_Penetrance/ACMG_Penetrance.html`. 
+1. Navigate to the directory `ACMG_Penetrance/`.  
+2. Open `ACMG_Penetrance/ACMG_Penetrance.Rmd`.  
+3. Click "Knit" to compile everything into `ACMG_Penetrance/ACMG_Penetrance.html`. 
 
 There are four different ways to run the code: <br />
  - **Running from scratch**: This is the default method. Everything will be compiled on the spot (runtime: 30-50 minutes). <br />
  - **Running with pre-downloaded 1000 Genomes VCFs**: Unzip `1000G.zip` before knitting the .Rmd, and the program will skip the step where the VCFs are downloaded directly from 1000 Genomes. SAMtools and tabix are no longer required. (20-40 minutes) <br />
- - **Running with processed 1000 Genomes data frame**: Unzip `/ACMG_Penetrance/ACMG_1000G.rds.zip` before knitting the .Rmd, and the program will skip the step where the VCFs are downloaded from 1000 Genomes and then unnested, processed, and imported. SAMtools and tabix are no longer required. (5-10 minutes) <br />
- - **Running with cached data objects**: Unzip `/ACMG_Penetrance/ACMG_Penetrance_cache.zip` and `/ACMG_Penetrance/ACMG_Penetrance_files.zip` before knitting the .Rmd, and the program will use cached data objects to recreate the figures. This skips all data processing tasks and allows the figures to be generated immediately (identical to those in the included .html). SAMtools and tabix are no longer required. (<1 minute) <br />
-<br />
+ - **Running with processed 1000 Genomes data frame**: Unzip `ACMG_Penetrance/ACMG_1000G.rds.zip` before knitting the .Rmd, and the program will skip the step where the VCFs are downloaded from 1000 Genomes and then unnested, processed, and imported. SAMtools and tabix are no longer required. (10-15 minutes) <br />
+ - **Running with cached data objects**: Unzip `ACMG_Penetrance/ACMG_Penetrance_cache.zip` and `ACMG_Penetrance/ACMG_Penetrance_files.zip` before knitting the .Rmd, and the program will use cached data objects to recreate the figures. This skips all data processing tasks and allows the figures to be generated immediately (identical to those in the included .html). SAMtools and tabix are no longer required. (<1 minute) <br />
 
-All 4 procedures give the same results, which should all be identical to `/ACMG_Penetrance/ACMG_Penetrance.html`
+All 4 procedures give the same results, which should all be identical to `ACMG_Penetrance/ACMG_Penetrance.html`
 
 -----------------------------------------------------------------
 
 ### RECREATING FIGURES FOR CLINVAR_REPORTS
 
-1. Navigate to the directory `/ClinVar_Reports/`. 
+1. Navigate to the directory `ClinVar_Reports/`. 
 2. Edit input parameters loaded from `ClinVar_Parameters.txt`. <br /> 
 More readme details in the file header. 
-3. Open `/ClinVar_Reports/ClinVar_Script.Rmd` and click "Knit".  
- - Individual reports for each date will be generated and saved in `\ClinVar_Reports\Reports`.  
- - All reports will be combined into a final report in `/ClinVar_Reports/ClinVar_Penetrance.html`.  
+3. Open `ClinVar_Reports/ClinVar_Script.Rmd` and click "Knit".  
+ - Individual reports for each date will be generated and saved in `ClinVar_Reports/Reports`.  
+ - All reports will be combined into a final report in `ClinVar_Reports/ClinVar_Penetrance.html`.  
 
 -------------------------------------------------------------
 
@@ -72,7 +71,7 @@ More readme details in the file header.
 7. **Shiny_App** contains the app (and dependencies) that allows users to generate `Figure_0.pdf` and `Figure_1.pdf` for custom inputs. 
 8. **Supplementary_Files/** contains the following input files and intermediary files. <br />
  - `ACMG_SF_v2.0.txt` contains the table from pages 4-5 of the Kalia et al. paper establishing ACMG SD v2.0. <br />
- - `clinvar_result_[date].txt` contains the table downloaded from the ClinVar website matched by the search query: <br />"(APC[GENE] OR MYH11[GENE]... OR WT1[GENE]) AND (clinsig_pathogenic[prop] OR clinsig_likely_pathogenic[prop])".  <br />
+ - `clinvar_result_[date].txt` contains the table downloaded from the ClinVar website matched by the search query: "(APC[GENE] OR MYH11[GENE]... OR WT1[GENE]) AND (clinsig_pathogenic[prop] OR clinsig_likely_pathogenic[prop])".  <br />
  - `cvquery_hg19_[date].bed` contains chromosomal locations of all variants in hg19 (as given by ClinVar). Ex: "chr1	17349110	17349111."  
  - `cvquery_hg38_[date].bed` contains chromosomal locations of all variants in hg38 (converted by liftOver).
  - `download_output.txt` contains the most recent output from downloading of VCFs from 1000 Genomes. It lists the selected transcription region and associated chromosomal locations for all genes. 
@@ -90,7 +89,7 @@ More readme details in the file header.
 
 ### CONTACT  
 
-Please contact James Diao (james [dot] diao [at] yale [dot] edu) with any questions. 
+Please contact James Diao (james.diao@yale.edu) with any questions. 
 
 <br />
 <br />
