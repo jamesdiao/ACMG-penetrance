@@ -1,6 +1,6 @@
 # 2017-ACMG-penetrance
 
-#### Date: 07 January 2017
+#### Date: 08 January 2017
 
 Here are some brief notes on how to run the pipeline for our 2017 project on the penetrance of the ACMG-59. <br />
 Using these commands, you should be able to completely recreate all figures in the paper.

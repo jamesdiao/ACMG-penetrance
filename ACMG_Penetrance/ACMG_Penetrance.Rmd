@@ -3,11 +3,11 @@ title: "ACMG-ClinVar Penetrance RMarkdown"
 author: "James Diao, under the supervision of Arjun Manrai"
 date: "January 8, 2016"
 output:
-  pdf_document:
-    number_sections: yes
-    toc: yes
   html_document:
     code_folding: hide
+    number_sections: yes
+    toc: yes
+  pdf_document:
     number_sections: yes
     toc: yes
 geometry: margin=1in
@@ -18,7 +18,7 @@ geometry: margin=1in
 ```{r setup, include = F}
 knitr::opts_knit$set(root.dir = "../");
 # change echo = T for code-folding in HTML document
-knitr::opts_chunk$set(echo = F, eval = T, cache = T, warning = F, message = F)
+knitr::opts_chunk$set(echo = T, eval = T, cache = T, warning = F, message = F)
 rm_rs1805124 <- TRUE # VAR_ID=="3_38645420_T_C"
 ```
 
