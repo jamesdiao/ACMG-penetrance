@@ -32,40 +32,29 @@ DF <- read.csv(file = "../Supplementary_Files/Literature_Prevalence_Estimates.cs
 ### User Interface
 ui <- shinyUI(fluidPage(
   titlePanel("Estimation of Penetrance from Population Parameters"),
+  h4("James Diao | January 9, 2017"),
   sidebarLayout(
     sidebarPanel(
       h3("Control Panel"),
       wellPanel(
-        h4("Disease-Level Allele Frequencies"),
-        radioButtons("dataset", "Select Dataset", 
-                     c("gnomAD","ExAC", "1000G"))
-      ),
-      wellPanel(
-        h4("Penetrance Estimate on Heatmap"),
-        radioButtons("position", "Select Display", c("Max", "Mean"))
-      ),
-      wellPanel(
-        h4("Allelic Heterogeneity Range"),
-        sliderInput("ah_range", "Draws max and min plausible bounds", 
+        radioButtons("dataset", "Select Dataset", c("gnomAD","ExAC", "1000G")),
+        radioButtons("position", "Select Heatmap Values", c("Max", "Mean")),
+        sliderInput("ah_range", "Case Allele Frequency Range", 
                     min = 0, max = 1, value = c(0.01,1), step = 0.05)
       ),
-      #wellPanel(
-      #  h4("Imputed Prevalence Range"),
-      #  sliderInput("range", "Ex: With range 5, a point prevalence of 0.3 becomes the prevalence range: 0.1-0.5", 
-      #              min = 1, max = 30, value = 5, step = 1)
-      #),
       wellPanel(
-        h4("Generate Plots with Modified Table"),
-        actionButton("run", " Make Plots", icon = icon("bar-chart"), styleclass = "success")
+        h4("Generate Plots"),
+        actionButton("run", " Make Plots", icon = icon("bar-chart"), styleclass = "success"),
+        h4()
       ),
       wellPanel(
         h4("Save Modified Table"), 
         div(class='row', 
             div(class="col-sm-6", 
                 actionButton("save", "Save Table", styleclass = "success"))
-        ),
-        shinyalert("saved", click.hide = TRUE, auto.close.after = 3)
-      )
+        )
+      ),
+      shinyalert("saved", click.hide = TRUE, auto.close.after = 3)
     ),
     
     mainPanel(
@@ -141,7 +130,7 @@ server <- shinyServer(function(input, output, session) {
       if (superpop != "Total") 
         find <- paste(find, superpop, sep = "_")
       named.freqs <- named.freqs[,find] %>% unlist %>% setNames(abbrev)
-      allelic.het <- c(ah_low, ah_low, mean(c(ah_low, ah_high)) %>% signif(3), ah_high, ah_high) %>% 
+      allelic.het <- c(ah_low, ah_low, mean(c(ah_low, ah_high)), ah_high, ah_high) %>% 
         rep(nrow(finalDF)) %>% matrix(nrow = nrow(finalDF), byrow = T)
       allelic.het[,3] <- acmg_ah
       # Matrix of penetrance values for allelic het range, capped at 1
@@ -159,17 +148,6 @@ server <- shinyServer(function(input, output, session) {
                                   "Disease" = factor(sapply(abbrev, 
                                                             function(x) rep(x,5)) %>% as.vector,
                                                      levels = abbrev[ord]) ) 
-    # Star/Radar Plot
-    #temp <- penetrance_data[pos,] %>% select(-Disease, -Total)
-    #rownames(temp) <- abbrev
-    #order(rowSums(temp, na.rm = T), decreasing = T)[1:10] -> wanted
-    #col <- 3
-    #stars(temp[wanted,], scale = F, full = F, len = 1, nrow = ceiling(10/col), ncol = col, 
-    #      flip.labels = F, key.loc = c(2*col,2), 
-    #      main = sprintf("Radar Plot: %s Penetrance by Ancestry (%s)", position, dataset),
-    #      draw.segments = T, col.segments = c('red','yellow','green','blue','purple'))
-    #print("These are the top 10 diseases by summed allele frequencies. NULL values are not plotted.", quote = F)
-    #print("Each radius is proportional to the penetrance of the disease in the given population.", quote = F)
     # Barplot
     penetrance_data <- gather(penetrance_data, Subset, Penetrance, -Disease)
     barplot <- ggplot(aes(x=Disease, y=Penetrance), data = penetrance_data) + 
@@ -179,6 +157,7 @@ server <- shinyServer(function(input, output, session) {
            theme(axis.text.y=element_text(size=6), 
                  axis.text.x = element_text(angle = -20, hjust = 0.4))
     barplot <- ggplotly(barplot, height = 800)
+    # Heatmap
     m <- list(l = 170, r = 150, b = -50, t = 100, pad = 5)
     vals <- unique(scales::rescale(c(penetrance_data$Penetrance))) %>% sort
     setord <- order(vals, decreasing = FALSE)
@@ -190,7 +169,9 @@ server <- shinyServer(function(input, output, session) {
       z = penetrance_init[pos,][ord,] %>% as.matrix %>% signif(3), 
       type = "heatmap", height = 800, colorscale = colz
     ) %>% layout(autosize = T, margin = m, 
-      title = sprintf("%s Penetrance by Ancestry (%s)", position, dataset))
+      title = sprintf("%s Penetrance by Ancestry (%s)", position, dataset)) %>% 
+      layout(plot_bgcolor='rgb(40, 40, 80)') 
+      #layout(plot_bgcolor='rgb(190, 190, 190)')
     output$heatmap <- renderPlotly({ heatmap })
     output$barplot <- renderPlotly({ barplot })
     #cat("Dark gray boxes are NA: no associated variants discovered in that ancestral population.")

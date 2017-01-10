@@ -3,11 +3,11 @@ title: "ACMG-ClinVar Penetrance RMarkdown"
 author: "James Diao, under the supervision of Arjun Manrai"
 date: "January 9, 2016"
 output:
-  html_document:
-    code_folding: hide
+  pdf_document:
     number_sections: yes
     toc: yes
-  pdf_document:
+  html_document:
+    code_folding: hide
     number_sections: yes
     toc: yes
 geometry: margin=1in
@@ -18,7 +18,7 @@ geometry: margin=1in
 ```{r setup, include = F}
 knitr::opts_knit$set(root.dir = "../");
 # change echo = T for code-folding in HTML document
-knitr::opts_chunk$set(echo = T, eval = T, cache = T, warning = F, message = F)
+knitr::opts_chunk$set(echo = F, eval = T, cache = T, warning = F, message = F)
 rm_rs1805124 <- TRUE # VAR_ID=="3_38645420_T_C"
 ```
 
@@ -130,7 +130,8 @@ ClinVar is the central repository for variant interpretations. Relevant informat
 (a) CLNSIG = "Variant Clinical Significance, 0 - Uncertain, 1 - Not provided, 2 - Benign, 3 - Likely benign, <br /> 4 - Likely pathogenic, 5 - Pathogenic, 6 - Drug response, 7 - Histocompatibility, 255 - Other"  
 (b) CLNDBN = "Variant disease name"  
 (c) CLNDSDBID = "Variant disease database ID"  
-(d) INTERP = Pathogenicity (likely pathogenic or pathogenic; CLNSIG = 4 or 5)
+(d) CLNREVSTAT = "Review Status, no\_assertion, no\_criteria, single - criterion provided single submitter, mult - criteria provided multiple submitters no conflicts, conf - criteria provided conflicting interpretations, exp - Reviewed by expert panel, guideline - Practice guideline"  
+(e) INTERP = Pathogenicity (likely pathogenic or pathogenic; CLNSIG = 4 or 5)
 
 ```{r clinvar, fig.width = 10}
 #Number to interpretation
@@ -669,21 +670,22 @@ ggplot(aes(x = c(1:20,1:20,1:20), y = Frequency)) +
   geom_bar(aes(fill = Dataset), position = "dodge", stat = "identity") + 
   xlab("Allele Counts") + ggtitle("Allele Count Spectrum (1-20)") + 
   theme(legend.position="bottom")
-
-#hist(round(ACMG.1000g$AF_1000G*5008) %>% table -> temp, breaks = 300000, xlim = c(0,20), 
-#     main = "Allele Frequency Spectrum", xlab = "Allele Count")
-#hist(table(ACMG.exac$Allele.Count)+0.2, breaks = 120000, xlim = c(0,20), ylim = c(0,1100), 
-#     add = T, col = 'red')
-
 #Test of Poissonness
 x = table(merged_1000g$AF_1000G)
 k = 1:length(x)-1
 poissondata = data.frame(k=k, poissonness = as.vector(log(x)+lfactorial(k)))
 ```
-The distribution of allele frequencies is approximately Poisson, with "Poissonness plot" correlation = `r signif(cor(k,log(x)+lfactorial(k)),2)`.  The Poissonness plot (Hoaglin 1980) is defined as the plot of $log(x_k) + log(k!)$ vs. $k$, as shown below: 
-```{r poissonness, fig.height = 3, fig.width = 3.5}
+
+<br />
+The distribution follows Binom(n,p), n = # samples and p = allele frequency, if trials are independent.  
+Because n is large and p is small, we may be justified in using a Poisson approximation to the binomial.  
+The fit of this approximation may be tested by the Poissonness plot (Hoaglin 1980), or $log(x_k) + log(k!)$ vs. $k$.  
+If $x_k = n\Pr(X=k) = n\left(\frac{\lambda^ke^{-k}}{k!}\right)$, then $\ln x_k + \ln k! = \ln n + k \ln \lambda - \lambda =$ linear function of k.  
+Despite some upward concavity, the plot demonstrates reasonable Poissonness, with correlation = `r signif(cor(k,log(x)+lfactorial(k)),2)`.  
+```{r poissonness, fig.height = 3, fig.width = 3}
 ggplot(aes(x=k,y=poissonness), data = poissondata) + geom_point() + ylab("log(x_k) + log(k!)") + ggtitle("Poissonness Plot")
 ```
+<br /> 
 
 \newpage
 
@@ -747,14 +749,14 @@ var_plot_exac <- function(dataset, pathogenic, frac) {
 Each individual has $n$ non-reference sites, which can be found by counting. The mean number is computed for each population.
 
 Ex: the genotype of 3 variants in 3 people looks like this: 
-```{r count_example, cache = F}
+```{r count_example}
 example <- ACMG.1000g[3142:3144,sprintf("HG00%d",366:368)]
 rownames(example) <- c("Variant 1", "Variant 2","Variant 3")
 example %>% pander
 ```
 
 Count the number of non-reference sites per individual:
-```{r count_example_2, cache = F} 
+```{r count_example_2} 
 colSums(example>0) %>% pander
 cat(sprintf("Mean = %s", mean(colSums(example>0)) %>% signif(3)))
 ```
@@ -787,12 +789,12 @@ example %>% pander
 ```
 
 The probability of having at least 1 non-reference site at each variant - (0|1) (1|0) or (1|1) is given by $1-(1-AF)^2$. Note that this is approximately $2*AF$ when $AF$ is small:
-```{r calc_example_2, cache = F} 
+```{r calc_example_2} 
 as.data.frame(1-(1-example)^2) %>% pander
 ```
 
 By linearity of expectation, the expected (mean) number of non-reference sites is $\sum E(V_i) = \sum (columns)$. 
-```{r calc_example_3, cache = F} 
+```{r calc_example_3} 
 colSums(1-(1-example)^2) %>% pander
 ```
 
@@ -824,14 +826,14 @@ var_plot_exac("gnomAD", pathogenic = T, frac = F)
 We can count up the fraction of individuals with 1+ non-reference site(s) in each population. This is the fraction of individuals who would receive a positive genetic test result in at least 1 of the ACMG-59 genes.
 
 Ex: the genotype of 3 variants in 3 people looks like this: 
-```{r frac_example, cache = F}
+```{r frac_example}
 example <- ACMG.1000g[3142:3144,sprintf("HG00%d",366:368)]
 rownames(example) <- c("Variant 1", "Variant 2","Variant 3")
 example %>% pander
 ```
 
 Count each individual as having a non-reference site (1) or having only reference sites (0):
-```{r frac_example_2, cache = F} 
+```{r frac_example_2} 
 (1*(colSums(example>0)>0)) %>% pander
 cat(sprintf("Mean = %s", mean(1*(colSums(example>0)>0)) %>% signif(3)))
 ```
@@ -915,17 +917,17 @@ and $D_x$ be the event that the individual is later diagnosed with disease $x$.
 
 In this case, we can define the following probabilities:  
 1. Prevalence = $P(D_x)$  
-2. Allele Frequency = $P(V_x)$  
-3. Allelic Heterogeneity = $P(V_x|D_x)$  
+2. Population Allele Frequency (PAF) = $P(V_x)$  
+3. Case Allele Frequency (CAF) = $P(V_x|D_x)$  
 4. Penetrance = $P(D_x|V_x)$  
 
-By Bayes' Rule, the penetrance of a variant related to disease $x$ may be defined as: $$P(D_x|V_x) = \frac{P(D_x)*P(V_x|D_x)}{P(V_x)} = \frac{Prevalence*Allelic.Heterogeneity}{Allele.Frequency}$$
+By Bayes' Rule, the penetrance of a variant related to disease $x$ may be defined as: $$P(D_x|V_x) = \frac{P(D_x)*P(V_x|D_x)}{P(V_x)} = \frac{(Prevalence)(Population \; Allele \; Frequency)}{Case \; Allele \; Frequency}$$
 
-To compute penetrance estimates for each of the diseases related to the ACMG-59 genes, we will use the prevalence data we collected into `Literature_Prevalence_Estimates.csv`, allele frequency data from 1000 Genomes and ExAC, and a broad range of values for allelic heterogeneity.  
+To compute penetrance estimates for each of the diseases related to the ACMG-59 genes, we will use the prevalence data we collected into `Literature_Prevalence_Estimates.csv`, allele frequency data from 1000 Genomes/ExAC/gnomAD, and a broad range of values for case allele frequency.   
 
 ## Import Literature-Based Disease Prevalence Data
 
-Data Collection: 
+Data Collection:  
 1. Similar disease subtypes were grouped together (e.g., the 8 different types of familial hypertrophic cardiomyopathy), resulting in 30 disease categories across 59 genes.  
 2. The search query "[disease name] prevalence" was used to find articles using Google Scholar.  
 3. Prevalence estimates were recorded along with URL, journal, region, publication year, sample size, first author, population subset (if applicable), date accessed, and potential issues. Preference was given to studies with PubMed IDs, more citations, and larger sample sizes.  
@@ -945,9 +947,9 @@ gene.list <- expand_pipes(ACMG_Lit_Full$Gene)
 report <- setNames(ACMG_Lit_Full$Variants_to_report %>% expand_pipes(), gene.list)[!duplicated(gene.list)]
 inheritance <- setNames(ACMG_Lit_Full$Inheritance %>% expand_pipes(), gene.list)[!duplicated(gene.list)]
 cat(sprintf("Table of Literature-Based Estimates %s x %s (selected rows/columns):", nrow(ACMG_Lit), ncol(ACMG_Lit)))
-ACMG_Lit[c(4,5,8,14),] %>% remove_rownames %>% 
-  select(Gene, Phenotype, Abbreviation, Inverse_Prevalence, Allelic_Heterogeneity) %>% pander
-acmg_ah <- ACMG_Lit$Allelic_Heterogeneity %>% as.numeric
+ACMG_Lit[c(1,7,11,18),] %>% remove_rownames %>% 
+  select(Gene, Phenotype, Inverse_Prevalence, Case_Allele_Frequency) %>% pander
+acmg_ah <- ACMG_Lit$Case_Allele_Frequency %>% as.numeric
 ```
 <br />
 
@@ -975,7 +977,8 @@ The frequencies across the relevant variants can be aggregated in two ways:
 
 ```{r disease_afs}
 sample_size <- list()
-sample_size$Cohort_1000G <- table(map$super_pop) %>% as.numeric %>% setNames(super.levels) %>% c("1000G"=2504)
+sample_size$Cohort_1000G <- table(map$super_pop) %>% 
+  as.numeric %>% setNames(super.levels) %>% c("1000G"=2504)
 sample_size$Cohort_EXAC <- c("AFR"=5203,"AMR"=5789,"EAS"=4327,
                               "EUR"=3307+33370,"SAS"=8256,"EXAC"=60252)
 sample_size$Cohort_GNOMAD <- c("AFR"=12942,"AMR"=18237,"EAS"=9472,
@@ -987,9 +990,9 @@ aggregateCalc <- function(input, superpop, item, dataset, loc) {
     find = paste(find, superpop, sep = "_")
   # Aggregation by calculation + ind assumption
   freq <- input[loc,find] %>% unlist %>% as.numeric #vector of all allele frequencies
-  if (sum(freq, na.rm = T)==0) { # prob after 0 obs using Laplace's rule of succession.
-    freq <- 1/(2+2*sample_size[[paste0("Cohort_",dataset)]][superpop])
-  } else {
+  #if (sum(freq, na.rm = T)==0) { # prob after 0 obs using Laplace's rule of succession.
+  #  freq <- 1/(2+2*sample_size[[paste0("Cohort_",dataset)]][superpop])
+  #} else {
     if (inheritance[item] == "AR")
       freq <- freq^2       #AR: prob of having a non-reference site at BOTH alleles
     if (inheritance[item] %in% c("AD","SD"))
@@ -997,7 +1000,7 @@ aggregateCalc <- function(input, superpop, item, dataset, loc) {
     if (inheritance[item] == "XL")
       freq <- freq         #XL: prob of having a non-reference site at ONE allele (male)
     freq <- 1-prod(1-freq[!is.na(freq)]) # prob of having a non-reference site in 1 chrom
-  }
+  #}
   return(freq)
 }
 
@@ -1016,8 +1019,8 @@ aggregateCount <- function(input, superpop, item, dataset, loc) {
     reduced_input <- input[loc,intersect(find,male)]
   }
   freq <- mean(apply(reduced_input, 2, function(col) any(col>=1)))
-  if (freq==0) 
-    freq <- 1/(2+2*sample_size[["Cohort_1000G"]][superpop])
+  #if (freq==0) 
+  #  freq <- 1/(2+2*sample_size[["Cohort_1000G"]][superpop])
   return(freq)
 }
 
@@ -1168,7 +1171,7 @@ plot_ind_test <- function() {
                    check_overlap = F, hjust = 1, na.rm = T, size = 2.5)
        )
   cat("30 diseases x 1000 points = 30,000 points.")
-  cat("This plot has been downsampled 10x and contains 3,000 points.")
+  cat("\nThis plot has been downsampled 10x and contains 3,000 points.")
   ind_test_data %>% filter(COUNT>0)
 }
 plot_ind_out <- plot_ind_test()
