@@ -1,6 +1,6 @@
 #title: "ACMG-ClinVar Penetrance Shiny App"
 #author: "James Diao, under the supervision of Arjun Manrai"
-#date: "January 8, 2017"
+#date: "January 20, 2017"
 
 # Set working directory to file folder
 outdir <- getSrcDirectory(function(dummy) {dummy})
@@ -10,7 +10,7 @@ setwd(outdir)
 outfilename <- "Modified_Estimates"
 # Packages to install
 pkg_list <- c("knitr","shiny","shinysky","rhandsontable","plotly",
-              "ggplot2","ggrepel","tibble","tidyr","dplyr")
+              "ggplot2","tibble","tidyr","dplyr")
 installed <- pkg_list %in% installed.packages()[,"Package"]
 if (!all(installed))
   install.packages(pkg_list[!installed])
@@ -27,12 +27,12 @@ load(file = "disease_level_AF.RData")
 # Read in the given .csv
 DF <- read.csv(file = "../Supplementary_Files/Literature_Prevalence_Estimates.csv", 
                header = TRUE, stringsAsFactors = F, na.strings = "NA") %>%
-  select(Evaluate, Abbreviation, Short_Name, Inverse_Prevalence, Allelic_Heterogeneity)
+  select(Evaluate, Abbreviation, Short_Name, Inverse_Prevalence, Case_Allele_Frequency)
 
 ### User Interface
 ui <- shinyUI(fluidPage(
   titlePanel("Estimation of Penetrance from Population Parameters"),
-  h4("James Diao | January 9, 2017"),
+  h4("James Diao | January 20, 2017"),
   sidebarLayout(
     sidebarPanel(
       h3("Control Panel"),
@@ -121,7 +121,7 @@ server <- shinyServer(function(input, output, session) {
     position = input$position
     pos <- replace(c(F,F,F,F,F), ifelse(position == "Max", 5, 3), T)
     abbrev <- finalDF$Short_Name
-    acmg_ah <- finalDF$Allelic_Heterogeneity %>% as.numeric %>% pmax(ah_low) %>% pmin(ah_high)
+    acmg_ah <- finalDF$Case_Allele_Frequency %>% as.numeric %>% pmax(ah_low) %>% pmin(ah_high)
     
     sapply(c(super.levels,"Total"), function(superpop){
       # Map of disease name to disease tags
@@ -169,8 +169,8 @@ server <- shinyServer(function(input, output, session) {
       z = penetrance_init[pos,][ord,] %>% as.matrix %>% signif(3), 
       type = "heatmap", height = 800, colorscale = colz
     ) %>% layout(autosize = T, margin = m, 
-      title = sprintf("%s Penetrance by Ancestry (%s)", position, dataset)) %>% 
-      layout(plot_bgcolor='rgb(40, 40, 80)') 
+      title = sprintf("%s Penetrance by Ancestry (%s)", position, dataset)) 
+      #%>% layout(plot_bgcolor='rgb(40, 40, 80)') 
       #layout(plot_bgcolor='rgb(190, 190, 190)')
     output$heatmap <- renderPlotly({ heatmap })
     output$barplot <- renderPlotly({ barplot })
