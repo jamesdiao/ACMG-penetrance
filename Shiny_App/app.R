@@ -1,6 +1,6 @@
 #title: "ACMG-ClinVar Penetrance Shiny App"
 #author: "James Diao, under the supervision of Arjun Manrai"
-#date: "January 20, 2017"
+#date: "January 22, 2017"
 
 # Set working directory to file folder
 outdir <- getSrcDirectory(function(dummy) {dummy})
