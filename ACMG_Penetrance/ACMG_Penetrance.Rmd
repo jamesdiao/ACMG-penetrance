@@ -1,13 +1,13 @@
 ---
 title: "ACMG-ClinVar Penetrance RMarkdown"
 author: "James Diao, under the supervision of Arjun Manrai"
-date: "January 24, 2016"
+date: "January 25, 2017"
 output:
-  pdf_document:
-    number_sections: yes
-    toc: yes
   html_document:
     code_folding: hide
+    number_sections: yes
+    toc: yes
+  pdf_document:
     number_sections: yes
     toc: yes
 geometry: margin=1in
@@ -1153,7 +1153,7 @@ save(freq_1000g.calc.gene, freq_1000g.count.gene, freq_exac.calc.gene, freq_gnom
 write.csv(allele.freq, file = sprintf("Supplementary_Files/Processed_Files/freq.all.gene.csv",file))
 ```
 
-```{r MIM_vs_gene}
+```{r MIM_vs_gene, fig.height = 4, fig.width = 4}
 plot_af_relation <- function(input1, input2, name1, name2) {
   data.frame(GENE = log10(input1), MIM = log10(input2), LABEL = ACMG_Lit_Full$Abbreviation) %>% 
   ggplot(aes(x = GENE, y = MIM, label = LABEL)) + 
