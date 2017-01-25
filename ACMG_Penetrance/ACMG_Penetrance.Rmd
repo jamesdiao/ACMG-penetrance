@@ -978,11 +978,11 @@ MG.list <- expand_pipes(ACMG_Lit_Full$MedGen)
 report <- ACMG_Lit_Full$Variants_to_report %>% expand_pipes()
   report.gene <- setNames(report, gene.list)[!duplicated(gene.list)]
   report.mim <- setNames(report, MIM.list)[!duplicated(MIM.list)]
-  report.mg <- setNames(report, MG.list)[!duplicated(MG.list)]
+  report.medgen <- setNames(report, MG.list)[!duplicated(MG.list)]
 inheritance <- ACMG_Lit_Full$Inheritance %>% expand_pipes()
   inheritance.gene <- setNames(inheritance, gene.list)[!duplicated(gene.list)]
   inheritance.mim <- setNames(inheritance, MIM.list)[!duplicated(MIM.list)]
-  inheritance.mg <- setNames(inheritance, MG.list)[!duplicated(MG.list)]
+  inheritance.medgen <- setNames(inheritance, MG.list)[!duplicated(MG.list)]
 cat(sprintf("Table of Literature-Based Estimates %s x %s (selected rows/columns):", nrow(ACMG_Lit), ncol(ACMG_Lit)))
 ACMG_Lit[c(1,7,11,18),] %>% remove_rownames %>% 
   select(Gene, Phenotype, Inverse_Prevalence, Case_Allele_Frequency) %>% pander
@@ -1084,7 +1084,7 @@ getAlleleFreq <- function(input, ind, dataset, method) {
   }
   if (toupper(method) == "MEDGEN") {
     expand = F; search_in = "CLNDSDBID"; search_col = "MedGen"; 
-    report.use = report.mg; inherit.use = inheritance.mg
+    report.use = report.medgen; inherit.use = inheritance.medgen
   }
   if (expand)
     input <- input %>% filter(list_len(input$CLNSIG) == list_len(input$CLNDSDBID)) %>% 
@@ -1123,10 +1123,10 @@ freq_1000g.calc.mim <- getAlleleFreq(input = merged_1000g, ind = T, dataset = "1
 freq_gnomad.calc.mim <- getAlleleFreq(input = merged_gnomad, ind = T, dataset = "GNOMAD", method = "MIM")
 freq_exac.calc.mim <- getAlleleFreq(input = merged_exac, ind = T, dataset = "EXAC", method = "MIM")
 
-freq_1000g.count.mg <- getAlleleFreq(input = merged_1000g, ind = F, dataset = "1000G", method = "MedGen")
-freq_1000g.calc.mg <- getAlleleFreq(input = merged_1000g, ind = T, dataset = "1000G", method = "MedGen")
-freq_gnomad.calc.mg <- getAlleleFreq(input = merged_gnomad, ind = T, dataset = "GNOMAD", method = "MedGen")
-freq_exac.calc.mg <- getAlleleFreq(input = merged_exac, ind = T, dataset = "EXAC", method = "MedGen")
+freq_1000g.count.medgen <- getAlleleFreq(input = merged_1000g, ind = F, dataset = "1000G", method = "MedGen")
+freq_1000g.calc.medgen <- getAlleleFreq(input = merged_1000g, ind = T, dataset = "1000G", method = "MedGen")
+freq_gnomad.calc.medgen <- getAlleleFreq(input = merged_gnomad, ind = T, dataset = "GNOMAD", method = "MedGen")
+freq_exac.calc.medgen <- getAlleleFreq(input = merged_exac, ind = T, dataset = "EXAC", method = "MedGen")
 
 allele.freq <- data.frame(
                    COUNT_1000G = freq_1000g.count.gene$AF_1000G, 
@@ -1141,7 +1141,7 @@ row.names(allele.freq) <- abbrev_all
 ``` {r save_af}
 save(freq_1000g.calc.gene, freq_1000g.count.gene, freq_exac.calc.gene, freq_gnomad.calc.gene, 
      freq_1000g.calc.mim, freq_1000g.count.mim, freq_exac.calc.mim, freq_gnomad.calc.mim, 
-     freq_1000g.calc.mg, freq_1000g.count.mg, freq_exac.calc.mg, freq_gnomad.calc.mg, 
+     freq_1000g.calc.medgen, freq_1000g.count.medgen, freq_exac.calc.medgen, freq_gnomad.calc.medgen, 
      file = "Shiny_App/disease_level_AF.RData")
 af_files <- c("freq_1000g.count.gene","freq_1000g.calc.gene","freq_gnomad.calc.gene","freq_exac.calc.gene")
 lapply(af_files, function(file) {
@@ -1154,15 +1154,17 @@ write.csv(allele.freq, file = sprintf("Supplementary_Files/Processed_Files/freq.
 ```
 
 ```{r MIM_vs_gene}
-plot_af_relation <- function() {
+plot_af_relation <- function(input1, input2, name1, name2) {
   data.frame(GENE = log10(input1), MIM = log10(input2), LABEL = ACMG_Lit_Full$Abbreviation) %>% 
   ggplot(aes(x = GENE, y = MIM, label = LABEL)) + 
     geom_point() + geom_text(aes(label=LABEL),hjust=0, vjust=0) + 
     geom_abline(slope = 1, intercept = 0) + ggtitle("MIM vs. GENE") + 
-    xlab(sprintf("AF using %s"),input1) + ylab(sprintf("AF using %s", input2))
+    xlab(sprintf("AF using %s",name1)) + ylab(sprintf("AF using %s", name2))
 }
-plot_af_relation(freq_gnomad.calc.gene$AF_GNOMAD, freq_gnomad.calc.mim$AF_GNOMAD)
-plot_af_relation(freq_gnomad.calc.gene$AF_GNOMAD, freq_gnomad.calc.mg$AF_GNOMAD)
+plot_af_relation(input1 = freq_gnomad.calc.gene$AF_GNOMAD, input2 = freq_gnomad.calc.mim$AF_GNOMAD,
+                 name1 = "GENE", name2 = "MIM")
+plot_af_relation(input1 = freq_gnomad.calc.gene$AF_GNOMAD, input2 = freq_gnomad.calc.medgen$AF_GNOMAD,
+                 name1 = "GENE", name2 = "MedGen")
 
 get_orpha_genes <- function() {
   unlist(merged_gnomad$CLNDSDBID) -> all_id

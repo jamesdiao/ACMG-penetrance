@@ -1,6 +1,6 @@
 #title: "ACMG-ClinVar Penetrance Shiny App"
 #author: "James Diao, under the supervision of Arjun Manrai"
-#date: "January 22, 2017"
+#date: "January 25, 2017"
 
 # Set working directory to file folder
 outdir <- getSrcDirectory(function(dummy) {dummy})
@@ -38,6 +38,7 @@ ui <- shinyUI(fluidPage(
       h3("Control Panel"),
       wellPanel(
         radioButtons("dataset", "Select Dataset", c("gnomAD","ExAC", "1000G")),
+        radioButtons("method", "Select Phenotype ID Method", c("Gene","MIM", "MedGen")),
         radioButtons("position", "Select Heatmap Values", c("Max", "Mean")),
         sliderInput("ah_range", "Case Allele Frequency Range", 
                     min = 0, max = 1, value = c(0.01,1), step = 0.05)
@@ -110,15 +111,16 @@ server <- shinyServer(function(input, output, session) {
     # Set Parameters
     finalDF <- isolate(values[["DF"]])
     keep <- finalDF$Evaluate %>% as.logical
-    freq_1000g <- freq_1000g.count.gene[keep,]
-    freq_exac <- freq_exac.calc.gene[keep,]
-    freq_gnomad <- freq_gnomad.calc.gene[keep,]
+    #freq_1000g <- freq_1000g.calc.gene[keep,]
+    #freq_exac <- freq_exac.calc.gene[keep,]
+    #freq_gnomad <- freq_gnomad.calc.gene[keep,]
     finalDF <- finalDF[keep,]
-    ah_low = input$ah_range[1]
-    ah_high = input$ah_range[2]
-    dataset = input$dataset
-    range = input$range
-    position = input$position
+    ah_low <- input$ah_range[1]
+    ah_high <- input$ah_range[2]
+    dataset <- input$dataset
+    method <- input$method
+    range <- input$range
+    position <- input$position
     pos <- replace(c(F,F,F,F,F), ifelse(position == "Max", 5, 3), T)
     abbrev <- finalDF$Short_Name
     acmg_ah <- finalDF$Case_Allele_Frequency %>% as.numeric %>% pmax(ah_low) %>% pmin(ah_high)
@@ -126,7 +128,8 @@ server <- shinyServer(function(input, output, session) {
     sapply(c(super.levels,"Total"), function(superpop){
       # Map of disease name to disease tags
       find <- paste0("AF_", toupper(dataset))
-      named.freqs <- parse(text=paste0("freq_", tolower(dataset))) %>% eval
+      freq_name <- sprintf("freq_%s.calc.%s", tolower(dataset), tolower(method))
+      named.freqs <- eval(parse(text=freq_name))[keep,]
       if (superpop != "Total") 
         find <- paste(find, superpop, sep = "_")
       named.freqs <- named.freqs[,find] %>% unlist %>% setNames(abbrev)
