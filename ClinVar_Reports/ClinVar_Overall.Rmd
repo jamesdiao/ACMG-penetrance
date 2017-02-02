@@ -10,7 +10,7 @@ geometry: margin=1in
 ---
 
 ```{r setup_overall, include=FALSE}
-knitr::opts_chunk$set(echo = T, eval = T, warning = F, message = F, include = F)
+knitr::opts_chunk$set(echo = F, eval = T, warning = F, message = F, include = T, cache = F)
 
 # Install and load all required packages
 pkg_list <- c("scrapeR","RMySQL", "knitr","markdown","rmarkdown","stringr",
@@ -50,7 +50,7 @@ if (params %in% system("ls", intern = T)) {
 
 ```
 
-``` {r get_dates}
+``` {r get_dates, include = F}
 get_date_list <- function() {
   clinvar_reports <- system("ls Archive_Tables", intern = T)
   clinvar_reports <- clinvar_reports[grep(".tsv",clinvar_reports)]
@@ -77,7 +77,7 @@ get_dates <- function(date_list, range) {
 clinvar_dates <- get_dates(date_list, range)
 ```
 
-```{r download_clinvar}
+```{r download_clinvar, include = F}
 if(download_new){
   for (cv_date in clinvar_dates) {
     url <- sprintf("ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/archive/%s/clinvar_%s.vcf.gz",
@@ -93,7 +93,7 @@ if(download_new){
 **List of dates:**  
 `r clinvar_dates`  
 
-``` {r make_reports}
+``` {r make_reports, include = F}
 for (cv_date in clinvar_dates) {
   # If required to generate new, or if the report is missing,
   if (generate_new | !(sprintf("Report_%s.pdf",cv_date) %in% 

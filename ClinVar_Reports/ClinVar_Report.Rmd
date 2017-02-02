@@ -13,15 +13,19 @@ geometry: margin=1in
 ---
 
 **Sourcing ClinVar input from**: `r clinvar_file`  
-**Sending output to**: `r paste0("Report_", cv_date, ".pdf")`  
+**Sending output to**: `r paste0("Report_", cv_date, ".pdf")` 
 
 ```{r setup, include = F}
-knitr::opts_chunk$set(echo = F, eval = T, warning = F, message = F, include = T)
-#clinvar_file <- "clinvar_2014-03-03.vcf"
-# save.image("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Environ_2016-11-04")
-# load("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Environ_2016-11-04")
-# use_clinvar <- NULL # Specify a path to a clinvar VCF file. NULL means download new from ClinVar FTP. 
-# use_clinvar <- "ClinVar_Reports/clinvar_2016-10-04.vcf"
+knitr::opts_chunk$set(echo = F, eval = T, warning = F, message = F, include = F, cache = F)
+#pkg_list <- c("scrapeR","RMySQL", "knitr","markdown","rmarkdown","stringr",
+#              "pander","ggplot2","ggrepel", "tibble","curl","tidyr","dplyr")
+#installed <- pkg_list %in% installed.packages()[,"Package"]
+#if (!all(installed))
+#  install.packages(pkg_list[!installed])
+#sapply(pkg_list, require, character.only = T)
+#load("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Environ_2017-02-01.RData")
+#clinvar_file <- "clinvar_2012-06-16.vcf"
+#cv_date <- "2012-06-16"
 ```
 
 \newpage
@@ -29,7 +33,7 @@ knitr::opts_chunk$set(echo = F, eval = T, warning = F, message = F, include = T)
 
 ## Import ClinVar VCF
 
-```{r clinvar, fig.width = 10}
+```{r clinvar}
 invisible(Sys.setlocale('LC_ALL','C') )
 clinvar <- get_clinvar(clinvar_file)
 #clinvar[duplicated(clinvar$VAR_ID),1:8]
@@ -39,7 +43,7 @@ clinvar <- clinvar[!duplicated(clinvar$VAR_ID),]
 
 ## Merge ClinVar with 1000 Genomes and ExAC
 
-```{r print_merge_details, fig.height=4}
+```{r print_merge_details}
 merged_1000g <- merge_clinvar_1000g() # From clinvar and ACMG.1000g
 
 inter <- intersect(clinvar$VAR_ID[clinvar$INTERP], ACMG.exac$VAR_ID)
@@ -75,11 +79,11 @@ breakdown("1000G")
 
 ## Fraction of Individuals with Pathogenic Non-Reference Sites
 
-```{r frac_var_1000g, fig.height = 4}
+```{r frac_var_1000g}
 var_plot_1000g(pathogenic = T, frac = T)
 ```
 
-```{r frac_var_gnomad, fig.height = 4}
+```{r frac_var_gnomad}
 var_plot_exac("gnomAD", pathogenic = T, frac = T)
 ```
 
@@ -88,10 +92,10 @@ var_plot_exac("gnomAD", pathogenic = T, frac = T)
 
 ```{r disease_afs}
 front_cols <- 1:(grep("HG00096",colnames(merged_1000g))-1)
-freq_1000g.count.gene <- getAlleleFreq(input = merged_1000g, ind = F, dataset = "1000G")
-freq_1000g.calc.gene <- getAlleleFreq(input = merged_1000g, ind = T, dataset = "1000G")
-freq_gnomad.calc.gene <- getAlleleFreq(input = merged_gnomad, ind = T, dataset = "GNOMAD")
-freq_exac.calc.gene <- getAlleleFreq(input = merged_exac, ind = T, dataset = "EXAC")
+freq_1000g.count.gene <- getAlleleFreq(input = merged_1000g, ind = F, dataset = "1000G", method = "gene")
+freq_1000g.calc.gene <- getAlleleFreq(input = merged_1000g, ind = T, dataset = "1000G", method = "gene")
+freq_gnomad.calc.gene <- getAlleleFreq(input = merged_gnomad, ind = T, dataset = "GNOMAD", method = "gene")
+freq_exac.calc.gene <- getAlleleFreq(input = merged_exac, ind = T, dataset = "EXAC", method = "gene")
 allele.freq <- data.frame(
                    COUNT_1000G = freq_1000g.count.gene$AF_1000G, 
                    CALC_1000G = freq_1000g.calc.gene$AF_1000G, 
@@ -118,8 +122,9 @@ Note: Some diseases have mean theoretical penetrance = 1 because the assumed all
 
 ## Penetrance Estimates by Ancestry
 
-```{r penetrance_by_ancestry, fig.height = 8.5}
-ancestry_gnomad <- ancestry_penetrance(ah_low = 0.01, ah_high = 1, dataset = "gnomAD", range = 5, position = "Max")
+```{r penetrance_by_ancestry}
+ancestry_gnomad <- ancestry_penetrance(ah_low = 0.01, ah_high = 1, dataset = "gnomAD", 
+                                       range = 5, position = "Max", af_type = "gene")
 ```
 
 ```{r save_files}
