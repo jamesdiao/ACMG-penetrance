@@ -12,6 +12,6 @@
 ### Last Date: Collect from Sys.Date()
 ###
 date_list = c("2012-06-16","2013-01-14","2014-02-11","2015-01-06","2016-01-04","2017-01-04")
-range = FALSE
+range = TRUE
 download_new = FALSE
-generate_new = FALSE
+generate_new = TRUE

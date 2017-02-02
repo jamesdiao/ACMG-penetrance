@@ -1,7 +1,7 @@
 ---
 title: "ClinVar Report"
 author: "James Diao"
-date: "January 22, 2017"
+date: "February 1, 2017"
 output:
   pdf_document:
     number_sections: yes

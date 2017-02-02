@@ -1,13 +1,13 @@
 ---
 title: "ACMG-ClinVar Penetrance RMarkdown"
 author: "James Diao, under the supervision of Arjun Manrai"
-date: "January 25, 2017"
+date: "February 1, 2017"
 output:
-  html_document:
-    code_folding: hide
+  pdf_document:
     number_sections: yes
     toc: yes
-  pdf_document:
+  html_document:
+    code_folding: hide
     number_sections: yes
     toc: yes
 geometry: margin=1in
@@ -24,8 +24,8 @@ rm_rs1805124 <- TRUE # VAR_ID=="3_38645420_T_C"
 
 ```{r testing, eval = F}
 setwd("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance")
-#save.image("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Environ_2017-01-25.RData")
-load("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Environ_2017-01-25.RData")
+#save.image("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Environ_2017-02-01.RData")
+load("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Environ_2017-02-01.RData")
 ```
 
 ```{r packages, include = F, cache = F}
@@ -571,60 +571,7 @@ breakdown("ExAC")
 breakdown("1000G")
 
 ```
-<br />
 
-\newpage
-## Comparison with ClinVar Browser Query Results
-`clinvar_query.txt` contains all results matched by the search query: "(APC[GENE] OR MYH11[GENE]... OR WT1[GENE]) AND (clinsig_pathogenic[prop] OR clinsig_likely_pathogenic[prop])" from the ClinVar website. The exact query is saved in /Supplementary_Files/query_input.txt  
-<br /> <br />
-This presents another way of collecting data from ClinVar. 
-
-Intermediate step: convert hg38 locations to hg19 using the Batch Coordinate Conversion tool (liftOver) from UCSC Genome Browser Utilities. 
-
-```{r clinvar_query}
-clinvar_query <- read.table(file = "Supplementary_Files/clinvar_result_2016_12_04.txt", sep = "\t", header = F, skip = 1, stringsAsFactors = F)
-colnames(clinvar_query) <- c("Name", "Gene(s)", "Condition(s)", "Frequency", "Clinical significance (Last reviewed)","Review status", "Chromosome","Location","Assembly","VariationID","AlleleID(s)")
-clinvar_count <- NULL
-clinvar_count <- clinvar_count %>% c(nrow(clinvar_query)) #1
-clinvar_query <- clinvar_query[grepl(".>.",clinvar_query$Name),]
-clinvar_count <- clinvar_count %>% c(nrow(clinvar_query)) #2
-clinvar_query <- clinvar_query[!grepl(" - ", clinvar_query$Location) & 
-                    !grepl("|",clinvar_query$Chromosome, fixed = T) &
-                    !(clinvar_query$Location == "") & 
-                    !grepl("Conflicting", clinvar_query$`Clinical significance (Last reviewed)`),]
-clinvar_count <- clinvar_count %>% c(nrow(clinvar_query)) #3
-clinvar_query <- clinvar_query %>%
-  mutate(Name = sub(".*(.>.).*","\\1", clinvar_query$Name)) %>% 
-  mutate(Location = as.integer(Location)) %>%
-  separate(Name, into = c("Alternate","Reference"), sep = ">")
-#liftOver from http://hgdownload.soe.ucsc.edu/admin/exe/macOSX.x86_64/liftOverMerge
-#input data from http://hgdownload.soe.ucsc.edu/goldenPath/hg38/liftOver/
-#paste(paste0("chr",clinvar_query$Chromosome), clinvar_query$Location, clinvar_query$Location+1) %>%
-#  write.table(file = "Supplementary_Files/cvquery_hg38_2016_12_04.bed", quote = F, row.names = F, col.names = F)
-#system("chmod +x ../Tools/liftOver")
-#system("../Tools/liftOver Supplementary_Files/cvquery_hg38_2016_12_04.bed ../Tools/hg38ToHg19.over.chain.gz Supplementary_Files/cvquery_hg19_2016_12_04.bed err.log")
-cvquery_hg19 <- read.table(file = "Supplementary_Files/cvquery_hg19_2016_12_04.bed", sep = "\t", header = F, stringsAsFactors = F)
-clinvar_query <- clinvar_query %>%
-  mutate(Location = cvquery_hg19$V2) %>%
-  unite(col = "VAR_ID", Chromosome, Location, Reference, Alternate, sep = "_", remove = F)
-clinvar_count <- clinvar_count %>% c(sum(clinvar_query$VAR_ID %in% clinvar$VAR_ID), #4
-                    sum(clinvar_query$VAR_ID %in% clinvar$VAR_ID[clinvar$INTERP]), #5
-                    sum(clinvar_query$VAR_ID %in% merged_gnomad$VAR_ID), #6
-                    sum(clinvar_query$VAR_ID %in% merged_exac$VAR_ID), #7
-                    sum(clinvar_query$VAR_ID %in% merged_1000g$VAR_ID)) #8
-clinvar_query[(clinvar_query$VAR_ID %in% merged_exac$VAR_ID) & (clinvar_query$VAR_ID %in% merged_1000g$VAR_ID),] -> temp
-cat(sprintf("ClinVar Query Results Table (substitutions only): %s x %s (selected rows/columns)", 
-            nrow(clinvar_query), ncol(clinvar_query)))
-clinvar_query %>% filter(clinvar_query$VAR_ID %in% merged_gnomad$VAR_ID) %>% 
-  slice(1:5) %>% select(c(1,4:8)) %>%
-  mutate(`Condition(s)` = `Condition(s)` %>% strsplit("|", fixed = T) %>% sapply("[",1)) %>%
-  mutate(Frequency = Frequency %>% strsplit(", ") %>% sapply("[",1) ) %>% 
-  mutate(`Gene(s)` = `Gene(s)` %>% strsplit("|", fixed = T) %>% sapply("[",1) ) %>% pander
-cat("Breakdown of ClinVar Query Results Table: ")
-data.frame(Subset = c("Initial Count","Filter Substitutions (N>N')","Filter Coupling/Bad-Locations","In ClinVar VCF","In LP/P-ClinVar","In LP/P-ACMG & gnomAD","In LP/P-ACMG & ExAC","In LP/P-ACMG & 1000G"), Number_of_Variants = clinvar_count) %>% pander
-cat("Note the large reduction after merging the online query results with the VCF.")
-```
-<br /> <br /> 
 
 \newpage
 # Plot Summary Statistics Across Populations
@@ -1010,8 +957,9 @@ ggplot(aes(x = factor(Disease, levels = Disease[order(Inverse_Prevalence)]), y =
 
 We define AF(disease) as the probability of having at least 1 variant associated with the disease.  <br />
 The variants can be assigned to diseases in two ways:  
-(1) By associating it with an MIM. An MIM code is assigned for around 55% of variants in each dataset.  
-(2) By associating it with a gene. All variants are associated with genes, but variants may be designated as pathogenic for non-ACMG conditions.  
+(1) By associating it by MIM. An MIM code is assigned for around 31% of assertions in each dataset.  
+(1) By associating it by MedGen. An MIM code is assigned for around 22% of assertions in each dataset.  
+(2) By associating it by gene. All variants are associated with genes, but some variants may be designated as pathogenic for non-ACMG conditions.  
 <br /> <br />
 The frequencies across the relevant variants can be aggregated in two ways:  
 (1) By direct counting, from genotype data in 1000 Genomes.  
@@ -1142,30 +1090,34 @@ row.names(allele.freq) <- abbrev_all
 save(freq_1000g.calc.gene, freq_1000g.count.gene, freq_exac.calc.gene, freq_gnomad.calc.gene, 
      freq_1000g.calc.mim, freq_1000g.count.mim, freq_exac.calc.mim, freq_gnomad.calc.mim, 
      freq_1000g.calc.medgen, freq_1000g.count.medgen, freq_exac.calc.medgen, freq_gnomad.calc.medgen, 
-     file = "Shiny_App/disease_level_AF.RData")
+     file = "Supplementary_Files/Processed_Files/disease_level_AF.RData")
 af_files <- c("freq_1000g.count.gene","freq_1000g.calc.gene","freq_gnomad.calc.gene","freq_exac.calc.gene")
 lapply(af_files, function(file) {
   write.csv(eval(parse(text=file)), 
             file = sprintf("Supplementary_Files/Processed_Files/%s.csv",file))
 }) %>% invisible
-save(freq_1000g.calc.gene, freq_1000g.count.gene, freq_exac.calc.gene, freq_gnomad.calc.gene, 
-     file = "Supplementary_Files/Processed_Files/disease_level_AF.RData")
 write.csv(allele.freq, file = sprintf("Supplementary_Files/Processed_Files/freq.all.gene.csv",file))
 ```
 
-```{r MIM_vs_gene, fig.height = 4, fig.width = 4}
+```{r MIM_vs_gene, fig.height = 3.5, fig.width = 4}
 plot_af_relation <- function(input1, input2, name1, name2) {
   data.frame(GENE = log10(input1), MIM = log10(input2), LABEL = ACMG_Lit_Full$Abbreviation) %>% 
   ggplot(aes(x = GENE, y = MIM, label = LABEL)) + 
-    geom_point() + geom_text(aes(label=LABEL),hjust=0, vjust=0) + 
-    geom_abline(slope = 1, intercept = 0) + ggtitle("MIM vs. GENE") + 
+    geom_point() + geom_text(aes(label=LABEL),hjust=0, vjust=0, size = 3) + 
+    geom_abline(slope = 1, intercept = 0) + ggtitle(sprintf("%s vs. %s", name2, name1)) + 
     xlab(sprintf("AF using %s",name1)) + ylab(sprintf("AF using %s", name2))
 }
 plot_af_relation(input1 = freq_gnomad.calc.gene$AF_GNOMAD, input2 = freq_gnomad.calc.mim$AF_GNOMAD,
                  name1 = "GENE", name2 = "MIM")
+```
+
+```{r MedGen_vs_gene, fig.height = 3.5, fig.width = 4}
 plot_af_relation(input1 = freq_gnomad.calc.gene$AF_GNOMAD, input2 = freq_gnomad.calc.medgen$AF_GNOMAD,
                  name1 = "GENE", name2 = "MedGen")
 
+```
+
+```{r identify_tags}
 get_orpha_genes <- function() {
   unlist(merged_gnomad$CLNDSDBID) -> all_id
   all_id <- all_id[grepl("ORPHA",all_id)]
@@ -1200,7 +1152,7 @@ medgen_numbers <- lapply(medgen, function(name) {
 
 <br />
 
-```{r af_scatter}
+```{r af_scatter, eval = F}
 #cor(allele.freq) %>% as.data.frame %>% pander
 ggplot(aes(x = CALC_1000G, y = CALC_GNOMAD), data = allele.freq) + 
   geom_point(stat = "identity", col = 'red') + 
@@ -1242,7 +1194,7 @@ ratio_diff()
 \newpage
 Sampling 1000 variants from all variants in 1000 Genomes to test deviations from independence assumptions.  
 Repeat for 1000 trials and plot the distribution of disease-level allele frequencies (1000 points per disease).  
-Only variants with allele frequency > 0.01 are evaluated. Since we look at 17 variants per disease, the maximum is approximately $1-(1-0.01)^{34} \approx 0.29$
+Only variants with allele frequency < 1% are evaluated. Since we look at 17 variants per disease, the maximum is approximately $1-(1-0.01)^{34} \approx 0.29$
 <br /> <br />
 
 ```{r ind_test, fig.height = 6}
@@ -1258,9 +1210,9 @@ plot_ind_test <- function() {
   #  }) %>% unlist -> select_rows
   #  data.frame(DISEASE = ACMG_Lit_Full$Abbreviation,
   #             COUNT = getAlleleFreq(ACMG.1000g[select_rows,], 
-  #               ind = F, dataset = "1000G")$AF_1000G, 
+  #               ind = F, dataset = "1000G", method = "gene")$AF_1000G, 
   #             CALC = getAlleleFreq(ACMG.1000g[select_rows,], 
-  #               ind = T, dataset = "1000G")$AF_1000G)
+  #               ind = T, dataset = "1000G", method = "gene")$AF_1000G)
   #})) -> ind_test_data
   #saveRDS(ind_test_data, "Supplementary_Files/ind_test.rds")
   #plot(ind_test_data %>% ggplot(aes(x=CALC-COUNT)) + geom_histogram(bins = 100) + 
@@ -1274,36 +1226,40 @@ plot_ind_test <- function() {
       select(RATIO) %>% unlist
   }) %>% data.frame %>% gather(Disease, Data) %>% filter(is.finite(Data)) -> plot_data
   
-  plot(plot_data %>% filter(!(Disease %in% c("Wilson","HCRC.AR","OTC"))) %>% 
+  plot(plot_data %>% filter(!(Disease %in% c("Wilson","HCRC.AR","OTC","Fabry"))) %>% 
   ggplot(aes(x = Disease, y = Data)) + geom_boxplot() + coord_flip() + 
   ylab("Allele Frequency Difference: Calculation/Counting") + 
   ggtitle("Differences in AF Methods: by Disease"))
   
-  plot(plot_data %>% filter(Disease %in% c("Wilson","HCRC.AR","OTC")) %>% 
+  plot(plot_data %>% filter(Disease %in% c("Wilson","HCRC.AR","OTC","Fabry")) %>% 
   ggplot(aes(x = Data)) + geom_histogram(bins = 100) + 
   facet_wrap("Disease", ncol = 1, scales = "free") + 
   xlab("Allele Frequency Difference: Calculation/Counting") + 
   ggtitle("Differences in AF Methods: by Disease (Outliers)"))
   
-
-  plot(ggplot(aes(x = COUNT, y = CALC), data = ind_test_data[runif(nrow(ind_test_data)) < 0.1,]) +
-         geom_point() + ggtitle("Testing Independence with Random Sampling") + 
-         scale_x_continuous(limits = c(0,1), breaks = seq(0,1,0.1)) + 
-         scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.1)) + 
+  plot_data <- ind_test_data[runif(nrow(ind_test_data)) < 0.01,]
+  plot_data$AR_XL <- plot_data$DISEASE %in% c("Wilson","HCRC.AR","OTC","Fabry")
+  
+  plot(ggplot(aes(x = COUNT, y = CALC), data = plot_data) +
+         geom_point(col = ifelse(plot_data$AR_XL,'red','black')) + 
+         ggtitle("Testing Independence with Random Sampling") + 
+         scale_x_continuous(limits = c(0,0.3), breaks = seq(0,1,0.1)) + 
+         scale_y_continuous(limits = c(0,0.3), breaks = seq(0,1,0.1)) + 
          xlab("Allele Frequency (From Counting)") + ylab("Allele Frequency (From Calculation)") +
          geom_abline(slope = 1, intercept = 0, color = 'blue') +
          geom_text(aes(label = replace(DISEASE,which(abs(COUNT - CALC) < 0.3), NA)), 
                    check_overlap = F, hjust = 1, na.rm = T, size = 2.5)
        )
-  cat("30 diseases x 1000 points = 30,000 points.")
-  cat("\nThis plot has been downsampled 10x and contains 3,000 points.")
+  cat("31 diseases x 1000 points = 31,000 points.")
+  cat("\nThis plot has been downsampled 100x and contains 310 points.")
+  cat("\nAR (autosomal recessive) and XL (X-linked) diseases are colored in red.")
   ind_test_data %>% filter(COUNT>0)
 }
 plot_ind_out <- plot_ind_test()
 sprintf("Pearson correlation: %s",
         signif(cor(plot_ind_out$COUNT,plot_ind_out$CALC),3)) %>% cat
-sprintf("Mean ratio (Calculation/Counting): %s", 
-        signif(mean(plot_ind_out$CALC/plot_ind_out$COUNT, na.rm = T),3)) %>% cat
+#sprintf("Mean ratio (Calculation/Counting): %s", 
+#        signif(mean(plot_ind_out$CALC/plot_ind_out$COUNT, na.rm = T),3)) %>% cat
 rm(plot_ind_out)
 ```
 
@@ -1493,7 +1449,61 @@ lm_compare <- lm(Penetrance_1000_Genomes ~ Penetrance_gnomAD, penetrance_data)
 
 
 
+<br />
 
+
+
+
+```{r clinvar_query, eval = F}
+#\newpage
+## Comparison with ClinVar Browser Query Results
+#`clinvar_query.txt` contains all results matched by the search query: "(APC[GENE] OR MYH11[GENE]... OR WT1[GENE]) AND (clinsig_pathogenic[prop] OR clinsig_likely_pathogenic[prop])" from the ClinVar website. The exact query is saved in /Supplementary_Files/query_input.txt  
+#<br /> <br />
+#This presents another way of collecting data from ClinVar. 
+#Intermediate step: convert hg38 locations to hg19 using the Batch Coordinate Conversion tool (liftOver) from UCSC Genome Browser Utilities. 
+
+clinvar_query <- read.table(file = "Supplementary_Files/clinvar_result_2016_12_04.txt", sep = "\t", header = F, skip = 1, stringsAsFactors = F)
+colnames(clinvar_query) <- c("Name", "Gene(s)", "Condition(s)", "Frequency", "Clinical significance (Last reviewed)","Review status", "Chromosome","Location","Assembly","VariationID","AlleleID(s)")
+clinvar_count <- NULL
+clinvar_count <- clinvar_count %>% c(nrow(clinvar_query)) #1
+clinvar_query <- clinvar_query[grepl(".>.",clinvar_query$Name),]
+clinvar_count <- clinvar_count %>% c(nrow(clinvar_query)) #2
+clinvar_query <- clinvar_query[!grepl(" - ", clinvar_query$Location) & 
+                    !grepl("|",clinvar_query$Chromosome, fixed = T) &
+                    !(clinvar_query$Location == "") & 
+                    !grepl("Conflicting", clinvar_query$`Clinical significance (Last reviewed)`),]
+clinvar_count <- clinvar_count %>% c(nrow(clinvar_query)) #3
+clinvar_query <- clinvar_query %>%
+  mutate(Name = sub(".*(.>.).*","\\1", clinvar_query$Name)) %>% 
+  mutate(Location = as.integer(Location)) %>%
+  separate(Name, into = c("Alternate","Reference"), sep = ">")
+#liftOver from http://hgdownload.soe.ucsc.edu/admin/exe/macOSX.x86_64/liftOverMerge
+#input data from http://hgdownload.soe.ucsc.edu/goldenPath/hg38/liftOver/
+#paste(paste0("chr",clinvar_query$Chromosome), clinvar_query$Location, clinvar_query$Location+1) %>%
+#  write.table(file = "Supplementary_Files/cvquery_hg38_2016_12_04.bed", quote = F, row.names = F, col.names = F)
+#system("chmod +x ../Tools/liftOver")
+#system("../Tools/liftOver Supplementary_Files/cvquery_hg38_2016_12_04.bed ../Tools/hg38ToHg19.over.chain.gz Supplementary_Files/cvquery_hg19_2016_12_04.bed err.log")
+cvquery_hg19 <- read.table(file = "Supplementary_Files/cvquery_hg19_2016_12_04.bed", sep = "\t", header = F, stringsAsFactors = F)
+clinvar_query <- clinvar_query %>%
+  mutate(Location = cvquery_hg19$V2) %>%
+  unite(col = "VAR_ID", Chromosome, Location, Reference, Alternate, sep = "_", remove = F)
+clinvar_count <- clinvar_count %>% c(sum(clinvar_query$VAR_ID %in% clinvar$VAR_ID), #4
+                    sum(clinvar_query$VAR_ID %in% clinvar$VAR_ID[clinvar$INTERP]), #5
+                    sum(clinvar_query$VAR_ID %in% merged_gnomad$VAR_ID), #6
+                    sum(clinvar_query$VAR_ID %in% merged_exac$VAR_ID), #7
+                    sum(clinvar_query$VAR_ID %in% merged_1000g$VAR_ID)) #8
+clinvar_query[(clinvar_query$VAR_ID %in% merged_exac$VAR_ID) & (clinvar_query$VAR_ID %in% merged_1000g$VAR_ID),] -> temp
+cat(sprintf("ClinVar Query Results Table (substitutions only): %s x %s (selected rows/columns)", 
+            nrow(clinvar_query), ncol(clinvar_query)))
+clinvar_query %>% filter(clinvar_query$VAR_ID %in% merged_gnomad$VAR_ID) %>% 
+  slice(1:5) %>% select(c(1,4:8)) %>%
+  mutate(`Condition(s)` = `Condition(s)` %>% strsplit("|", fixed = T) %>% sapply("[",1)) %>%
+  mutate(Frequency = Frequency %>% strsplit(", ") %>% sapply("[",1) ) %>% 
+  mutate(`Gene(s)` = `Gene(s)` %>% strsplit("|", fixed = T) %>% sapply("[",1) ) %>% pander
+cat("Breakdown of ClinVar Query Results Table: ")
+data.frame(Subset = c("Initial Count","Filter Substitutions (N>N')","Filter Coupling/Bad-Locations","In ClinVar VCF","In LP/P-ClinVar","In LP/P-ACMG & gnomAD","In LP/P-ACMG & ExAC","In LP/P-ACMG & 1000G"), Number_of_Variants = clinvar_count) %>% pander
+cat("Note the large reduction after merging the online query results with the VCF.")
+```
 
 
 ```{r collect_mim, eval = F}
