@@ -4,27 +4,29 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F)
+knitr::opts_chunk$set(echo = F, warning = F)
 ```
 
 ```{r packages, include = F, cache = F}
 outdir <- getSrcDirectory(function(dummy) {dummy})
 setwd(outdir)
 library(dplyr)
+library(knitr)
 library(pander)
 panderOptions("table.alignment.rownames","left")
 panderOptions('table.alignment.default', function(df) {
-  ifelse(sapply(df, is.numeric), 'right', 'left')
+  ifelse(sapply(df, function(x) x[1] %>% as.numeric %>% is.na), 'left', 'right')
 })
 panderOptions("table.caption.prefix","")
 ```
 
 ```{r display}
-colClasses <- c("character","character","numeric","numeric","numeric","numeric")
+colClasses <- c("character","character","numeric","numeric","numeric")
 table_1 <- read.csv(file = "Table_1.csv", colClasses = colClasses)
 table_1[,3] <- 1/table_1[,3]
-table_1[,3:6] <- table_1[,3:6] %>% signif(3) %>% format(scientific = F)
+table_1[,3:5] <- table_1[,3:5] %>% signif(3) %>% format(scientific = T)
 colnames(table_1)[3] <- "Prevalence"
-colnames(table_1)[6] <- "Max Penetrance"
+colnames(table_1)[4] <- '95%-CI PAF'
+colnames(table_1)[5] <- "Max Penetrance"
 table_1 %>% pander
 ```

@@ -1,7 +1,7 @@
 ---
 title: "ACMG-ClinVar Penetrance RMarkdown"
 author: "James Diao, under the supervision of Arjun Manrai"
-date: "February 1, 2017"
+date: "June 20, 2017"
 output:
   pdf_document:
     number_sections: yes
@@ -24,8 +24,8 @@ rm_rs1805124 <- TRUE # VAR_ID=="3_38645420_T_C"
 
 ```{r testing, eval = F}
 setwd("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance")
-#save.image("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Environ_2017-02-01.RData")
-load("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Environ_2017-02-01.RData")
+#save.image("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/MA_Environ_2017-05-23.RData")
+#load("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/MA_Environ_2017-05-23.RData")
 ```
 
 ```{r packages, include = F, cache = F}
@@ -232,11 +232,56 @@ get_clinvar <- function(clinvar_file) {
     input <- input %>% mutate(CLNDSDBID = strsplit(CLNDSDBID,"|",fixed = T)) 
   input$CLNSIG <- sapply(input$CLNSIG, function(x) as.integer(x))
   input$INTERP <- sapply(input$CLNSIG, function(x) any(x %in% c(4,5)) & !(any(x %in% c(2,3)))) 
-  input
+  input$LMM <- grepl("Laboratory_for_Molecular_Medicine",input$INFO)
+  return(input)
 }
-clinvar <- get_clinvar(clinvar_file)
-#clinvar[duplicated(clinvar$VAR_ID),1:8]
-clinvar <- clinvar[!duplicated(clinvar$VAR_ID),]
+#orig_clinvar <- get_clinvar(clinvar_file)
+#orig_clinvar[duplicated(orig_clinvar$VAR_ID),1:8]
+#orig_clinvar <- orig_clinvar[!duplicated(orig_clinvar$VAR_ID),]
+
+#str_find <- function(vec, str1, str2) {
+#  strsplit(vec,str1) %>% lapply('[[',2) %>% unlist %>% 
+#    strsplit(str2) %>% lapply('[[',1) %>% unlist %>% return
+#}
+#str_find(mc_clinvar[,12], "ALL_SUBMITTERS=", ";") -> x
+
+get_mc_clinvar <- function(clinvar_file) {
+  file.by.line <- readLines(clinvar_file)
+  #file_date <- as.Date(strsplit(file.by.line[2],"=")[[1]][2], "%Y%m%d")
+  #system(sprintf("mv %s ClinVar_Reports/clinvar_%s.vcf", clinvar_file, file_date))
+  clean.lines <- file.by.line[!grepl("##.*", file.by.line)] #Remove ## comments
+  clean.lines[1] <- sub('.', '', clean.lines[1]) #Remove # from header
+  input <- read.table(text = paste(clean.lines, collapse = "\n"), header = T, 
+                      stringsAsFactors = F, comment.char = "", quote = "", sep = "\t")
+  input <- input[nchar(input$REF)==1,] #deletions
+  split_all <- strsplit(input$INFO,";")
+  input$pathogenic <- grepl(1,sapply(split_all, function(x) x[grep('PATHOGENIC=',x)]))
+  input$benign <- grepl(1,sapply(split_all, function(x) x[grep('BENIGN=',x)]))
+  input$GOLD_STARS <- input$INFO %>% strsplit("GOLD_STARS=") %>% 
+    sapply('[[',2) %>% unlist %>% strsplit(';') %>% 
+    sapply('[[',1) %>% unlist %>% as.integer
+  input$CLNSIG <- input$INFO %>% strsplit("CLINICAL_SIGNIFICANCE=") %>% 
+    sapply('[[',2) %>% unlist %>% strsplit(';') %>% 
+    sapply('[[',1) %>% unlist %>% strsplit('|', fixed = T)
+  input$INTERP <- input$pathogenic
+  input$CLNALLE <- 1
+  input$CLNREVSTAT <- 1
+  input$CLNDSDBID <- 1
+  input$CLNDSDB <- 1
+  input$LMM <- grepl("Laboratory_for_Molecular_Medicine",input$INFO)
+  input <- input %>% unite(VAR_ID, CHROM, POS, REF, ALT, sep = "_", remove = F) %>% 
+    select(VAR_ID, CHROM, POS, ID, REF, ALT, CLNSIG, INTERP, GOLD_STARS, LMM, everything())
+}
+
+clinvar_file <- 'XML/clinvar_alleles.single.b37.vcf'
+system(sprintf("gunzip -c %s.gz > %s", clinvar_file, clinvar_file))
+mc_clinvar <- get_mc_clinvar(clinvar_file)
+mc_clinvar[duplicated(mc_clinvar$VAR_ID),1:8]
+mc_clinvar <- mc_clinvar[!duplicated(mc_clinvar$VAR_ID),]
+
+#clinvar <- orig_clinvar
+clinvar <- mc_clinvar
+
 ```
 
 ```{r disp_clinvar, cache = F}
@@ -329,7 +374,7 @@ Multiple alleles are unnested into multiple counts. For example: (0|2) becomes 0
 
 
 ```{r import_1000g}
-import.file.1000g <- function(gene) {
+import_file_1000g <- function(gene) {
   #for tracking: 
   sprintf("%s [%s/%s]", gene, grep(gene, ACMG.panel), length(ACMG.panel)) %>% print(quote = F)
   name <- paste("1000G",paste(gene,"genotypes.vcf", sep = "_"), sep = "/")
@@ -387,7 +432,7 @@ if (skip_processing) {
   header <- c("CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT", as.character(map$sample))
   for (gene in ACMG.panel) {
     #print(sprintf("[%d/%d] %s",which(gene==ACMG.panel),length(ACMG.panel),gene))
-    ACMG.1000g <- rbind(ACMG.1000g,import.file.1000g(gene))
+    ACMG.1000g <- rbind(ACMG.1000g,import_file_1000g(gene))
   }
   #Display and remove duplicates
   #ACMG.1000g[duplicated(ACMG.1000g$VAR_ID),1:8]
@@ -411,7 +456,7 @@ if (rm_rs1805124)
 African = AFR, Latino = AMR, European (Finnish + Non-Finnish) = EUR, East.Asian = EAS, South.Asian = SAS. 
 
 ```{r import_exac}
-import.file.exac <- function(gene, dataset) {
+import_file_exac <- function(gene, dataset) {
   file_name <- sprintf("%s/%s_%s.csv", dataset, dataset, gene)
   output <- read.csv(file_name, stringsAsFactors = FALSE)
   output$Number.of.Hemizygotes <- NULL #Inconsistently present column; removal allows row aggregation
@@ -455,8 +500,8 @@ ACMG.exac <- NULL
 ACMG.gnomad <- NULL
 for (gene in ACMG.panel) {
   #print(sprintf("[%d/%d] %s",which(gene==ACMG.panel),length(ACMG.panel),gene))
-  ACMG.exac <- rbind(ACMG.exac,import.file.exac(gene, "exac"))
-  ACMG.gnomad <- rbind(ACMG.gnomad,import.file.exac(gene, "gnomad"))
+  ACMG.exac <- rbind(ACMG.exac,import_file_exac(gene, "exac"))
+  ACMG.gnomad <- rbind(ACMG.gnomad,import_file_exac(gene, "gnomad"))
 }
 #Display and remove duplicates
 #ACMG.exac[duplicated(ACMG.exac$VAR_ID),1:8]
@@ -517,8 +562,9 @@ if (!("AF_1000G_AFR" %in% colnames(ACMG.1000g))) {
 ## Merge ClinVar with gnomAD, ExAC, and 1000 Genomes
 
 ```{r print_merge_details}
+collect <- clinvar$INTERP #& clinvar$LMM #(clinvar$GOLD_STARS >= 2)
 merge_clinvar_1000g <- function() {
-  inter <- intersect(clinvar$VAR_ID[clinvar$INTERP], ACMG.1000g$VAR_ID)
+  inter <- intersect(clinvar$VAR_ID[collect], ACMG.1000g$VAR_ID)
   clinvar_merged <- clinvar[(clinvar$VAR_ID %in% inter),] %>% arrange(VAR_ID)
   ACMG_merged <- ACMG.1000g[ACMG.1000g$VAR_ID %in% inter,] %>% arrange(VAR_ID)
   front_cols <- 1:(grep("HG00096",colnames(ACMG.1000g))-1)
@@ -527,13 +573,13 @@ merge_clinvar_1000g <- function() {
 }
 merged_1000g <- merge_clinvar_1000g()
 
-inter <- intersect(clinvar$VAR_ID[clinvar$INTERP], ACMG.exac$VAR_ID)
+inter <- intersect(clinvar$VAR_ID[collect], ACMG.exac$VAR_ID)
 merged_exac <- cbind(clinvar[(clinvar$VAR_ID %in% inter),] %>% arrange(VAR_ID), 
   ACMG.exac %>% select(VAR_ID, contains("AF_"), GENE) %>% 
     filter(VAR_ID %in% inter) %>% arrange(VAR_ID) %>% select(-VAR_ID)
   ) %>% select(VAR_ID, GENE, AF_EXAC, contains("AF_"), everything())
 
-inter <- intersect(clinvar$VAR_ID[clinvar$INTERP], ACMG.gnomad$VAR_ID)
+inter <- intersect(clinvar$VAR_ID[collect], ACMG.gnomad$VAR_ID)
 merged_gnomad <- cbind(clinvar[(clinvar$VAR_ID %in% inter),] %>% arrange(VAR_ID), 
   ACMG.gnomad %>% select(VAR_ID, contains("AF_"), GENE) %>% 
     filter(VAR_ID %in% inter) %>% arrange(VAR_ID) %>% select(-VAR_ID)
@@ -1550,3 +1596,27 @@ F_values <- c(Fcalc(values$Mean)$`Pr(>F)`[1] %>% setNames("Overall"),
 par(mfrow=c(1,1), mar=c(5, 4, 4, 2)+0.1)
 #F_values
 ```
+
+```{r, eval = F}
+lapply(1:nrow(download_output), function(i) {
+  sum((clinvar$CHROM == download_output$chrom[i]) & between(clinvar$POS, download_output$start[i], download_output$end[i]) & clinvar$INTERP)
+}) %>% setNames(ACMG.panel) %>% unlist -> cv_num
+```
+
+```{r, eval = F, include = F}
+LMM.panel <- c("ACTC1", "ACTN2", "CSRP3", "GLA", "LAMP2", "MYBPC3", "MYH7", "MYL2", "MYL3", "MYOZ2", "NEXN", "PLN", "PRKAG2", "PTPN11", "RAF1", "TNNC1", "TNNI3", "TNNT2", "TPM1", "TTR")
+
+for (con in dbListConnections(MySQL())) dbDisconnect(con)
+con <- dbConnect(MySQL(), user = 'genome',
+                 dbname = 'hg19', host = 'genome-mysql.cse.ucsc.edu',
+                 unix.sock = "/Applications/MAMP/tmp/mysql/mysql.sock")
+suppressWarnings(dbGetQuery(con, "select name2 from refGene")) -> random.genes
+sample(random.genes,1000) -> x
+no_no <- grepl("orf",x) | grepl("LOC",x) | grepl("LINC",x) | grepl("MIR",x) | 
+  grepl("HIST",x) | grepl("-",x)
+x[!no_no][1:110] -> random
+```
+
+
+
+
