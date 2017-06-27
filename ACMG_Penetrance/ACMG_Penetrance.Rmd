@@ -1,7 +1,7 @@
 ---
 title: "ACMG-ClinVar Penetrance RMarkdown"
 author: "James Diao, under the supervision of Arjun Manrai"
-date: "June 20, 2017"
+date: "June 22, 2017"
 output:
   pdf_document:
     number_sections: yes
@@ -24,14 +24,14 @@ rm_rs1805124 <- TRUE # VAR_ID=="3_38645420_T_C"
 
 ```{r testing, eval = F}
 setwd("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance")
-#save.image("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/MA_Environ_2017-05-23.RData")
-#load("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/MA_Environ_2017-05-23.RData")
+#save.image("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/LMM_Environ_2017-06-20.RData")
+#load("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/LMM_Environ_2017-06-20.RData")
 ```
 
 ```{r packages, include = F, cache = F}
 # Install and load all required packages
 pkg_list <- c("scrapeR","RMySQL", "knitr","pander","ggplot2",
-              "ggrepel", "tibble","curl","tidyr","dplyr")
+              "ggrepel", "tibble","curl","tidyr","dplyr", "stringr")
 installed <- pkg_list %in% installed.packages()[,"Package"]
 if (!all(installed))
   install.packages(pkg_list[!installed])
@@ -156,7 +156,13 @@ clnsig_map <- c(0:7,255,-1) %>% setNames(c("Uncertain",
 #conf - Criteria #provided conflicting interpretations, 
 #exp - Reviewed by expert panel, 
 #guideline - Practice guideline"
+
 get_clinvar <- function(clinvar_file) {
+  
+  extract_element <- function(phrase) {
+    str_match_all(input$INFO, sprintf('%s=([^;]*);', phrase)) %>% 
+      lapply('[[', 2) %>% unlist
+  }
   file.by.line <- readLines(clinvar_file)
   #file_date <- as.Date(strsplit(file.by.line[2],"=")[[1]][2], "%Y%m%d")
   #system(sprintf("mv %s ClinVar_Reports/clinvar_%s.vcf", clinvar_file, file_date))
@@ -169,25 +175,21 @@ get_clinvar <- function(clinvar_file) {
   acceptable_nchar <- 2*alt_num-1 #adds in the length from commas, if each alt is 1 nt.
   input <- input[nchar(input$ALT)==acceptable_nchar,] #insertions
   input$ALT <- strsplit(input$ALT,",")
-  split_all <- strsplit(input$INFO,";")
-  has.clndsdb <- any(grepl("CLNDSDB", split_all))
-  has.clndsdbid <- any(grepl("CLNDSDBID", split_all))
-  has.clnrevstat <- any(grepl("CLNREVSTAT", split_all))
+  has.clndsdb <- any(grepl("CLNDSDB", input$INFO[1:100]))
+  has.clndsdbid <- any(grepl("CLNDSDBID", input$INFO[1:100]))
+  has.clnrevstat <- any(grepl("CLNREVSTAT", input$INFO[1:100]))
   
-  split_info <- function(name) {
-    sapply(split_all, function(entry) {
-      entry[grep(name,entry)]
-    }) %>% strsplit("=") %>% sapply(function(x) x[2]) %>% strsplit(",")
-  }
-  input$CLNALLE <- split_info("CLNALLE=") %>% sapply(as.integer)
-  input$CLNSIG <- split_info("CLNSIG=")
-  input$CLNDBN <- split_info("CLNDBN=")
-  if (has.clnrevstat)
-    input$CLNREVSTAT <- split_info("CLNREVSTAT=")
-  if (has.clndsdb)
-    input$CLNDSDB <- split_info("CLNDSDB=")
-  if (has.clndsdbid)
-    input$CLNDSDBID <- split_info("CLNDSDBID=")
+  input$CLNALLE <- extract_element('CLNALLE') %>% strsplit(',', fixed = T) %>% lapply(as.integer)
+  input$CLNSIG <- extract_element('CLNSIG') %>% strsplit(',', fixed = T)
+  input$CLNDBN <- extract_element('CLNDBN') %>% strsplit(',', fixed = T)
+  #input$CLNSRC <- extract_element('CLNSRC') %>% strsplit(',', fixed = T)
+  if (has.clnrevstat) input$CLNREVSTAT <- extract_element('CLNREVSTAT') %>% 
+    strsplit(',', fixed = T)
+  if (has.clndsdb) input$CLNDSDB <- extract_element('CLNDSDB') %>% 
+    strsplit(',', fixed = T)
+  if (has.clndsdbid) input$CLNDSDBID <- extract_element('CLNDSDBID') %>% 
+    strsplit(',', fixed = T)
+
   #CLNALLE has 0,-1,3,4 --> CLNSIG has 1,2,3,4 --> ALT has 1. 
   taking <- sapply(input$CLNALLE, function(x) x[x>0] ) #Actual elements > 0. Keep these in CLNSIG and ALT 
   taking_loc <- sapply(input$CLNALLE, function(x) which(x>0) )#Tracks locations for keeping in CLNALLE
@@ -246,6 +248,12 @@ get_clinvar <- function(clinvar_file) {
 #str_find(mc_clinvar[,12], "ALL_SUBMITTERS=", ";") -> x
 
 get_mc_clinvar <- function(clinvar_file) {
+  
+  extract_element <- function(phrase) {
+    str_match_all(input$INFO, sprintf('%s=([^;]*);', phrase)) %>% 
+      lapply('[[', 2) %>% unlist
+  }
+  
   file.by.line <- readLines(clinvar_file)
   #file_date <- as.Date(strsplit(file.by.line[2],"=")[[1]][2], "%Y%m%d")
   #system(sprintf("mv %s ClinVar_Reports/clinvar_%s.vcf", clinvar_file, file_date))
@@ -254,21 +262,33 @@ get_mc_clinvar <- function(clinvar_file) {
   input <- read.table(text = paste(clean.lines, collapse = "\n"), header = T, 
                       stringsAsFactors = F, comment.char = "", quote = "", sep = "\t")
   input <- input[nchar(input$REF)==1,] #deletions
-  split_all <- strsplit(input$INFO,";")
-  input$pathogenic <- grepl(1,sapply(split_all, function(x) x[grep('PATHOGENIC=',x)]))
-  input$benign <- grepl(1,sapply(split_all, function(x) x[grep('BENIGN=',x)]))
-  input$GOLD_STARS <- input$INFO %>% strsplit("GOLD_STARS=") %>% 
-    sapply('[[',2) %>% unlist %>% strsplit(';') %>% 
-    sapply('[[',1) %>% unlist %>% as.integer
-  input$CLNSIG <- input$INFO %>% strsplit("CLINICAL_SIGNIFICANCE=") %>% 
-    sapply('[[',2) %>% unlist %>% strsplit(';') %>% 
-    sapply('[[',1) %>% unlist %>% strsplit('|', fixed = T)
-  input$INTERP <- input$pathogenic
+
+  input$pathogenic <- extract_element('PATHOGENIC')==1
+  input$benign <- extract_element('BENIGN')==1
+  input$conflicted <- extract_element('CONFLICTED')==1
+  input$GOLD_STARS <- extract_element('GOLD_STARS') %>% as.integer()
+  input$CLNSIG <- extract_element('CLINICAL_SIGNIFICANCE') %>% strsplit('|', fixed = T)
+  input$INTERP <- input$pathogenic & !input$benign & !input$conflicted
+  temp_LMM <- extract_element('ALL_SUBMITTERS') %>% strsplit('|', fixed = T) %>% 
+    lapply(function(x) grep('Laboratory_for_Molecular_Medicine', x)) 
+  input$LMM <- ifelse(lapply(temp_LMM, length)==0, 0, temp_LMM) %>% unlist
+  input$LMM_INTERP <- apply(input, 1, 
+           function(row) any(grepl('athogenic', unlist(row$CLNSIG)[unlist(row$LMM)]))
+           ) %>% unlist
+  temp_OMIM <- extract_element('ALL_SUBMITTERS') %>% strsplit('|', fixed = T) %>% 
+    lapply(function(x) grep('OMIM', x)) 
+  input$OMIM <- ifelse(lapply(temp_OMIM, length)==0, 0, temp_OMIM) %>% unlist
+  input$NOT_OMIM_INTERP <- input$INTERP & apply(input, 1, 
+           function(row) {
+             vec <- unlist(row$CLNSIG)
+             el <- is.element(1:length(vec), unlist(row$OMIM))
+             any(grepl('athogenic', vec[!el]))
+           }) %>% unlist
   input$CLNALLE <- 1
   input$CLNREVSTAT <- 1
   input$CLNDSDBID <- 1
   input$CLNDSDB <- 1
-  input$LMM <- grepl("Laboratory_for_Molecular_Medicine",input$INFO)
+  #input$LMM <- grepl("Laboratory_for_Molecular_Medicine",input$INFO)
   input <- input %>% unite(VAR_ID, CHROM, POS, REF, ALT, sep = "_", remove = F) %>% 
     select(VAR_ID, CHROM, POS, ID, REF, ALT, CLNSIG, INTERP, GOLD_STARS, LMM, everything())
 }
@@ -562,7 +582,8 @@ if (!("AF_1000G_AFR" %in% colnames(ACMG.1000g))) {
 ## Merge ClinVar with gnomAD, ExAC, and 1000 Genomes
 
 ```{r print_merge_details}
-collect <- clinvar$INTERP #& clinvar$LMM #(clinvar$GOLD_STARS >= 2)
+collect <- clinvar$NOT_OMIM_INTERP #& clinvar$LMM_INTERP #& (clinvar$GOLD_STARS >= 2) 
+#INTERP means at least 1 (likely) pathogenic and no (likely) benign
 merge_clinvar_1000g <- function() {
   inter <- intersect(clinvar$VAR_ID[collect], ACMG.1000g$VAR_ID)
   clinvar_merged <- clinvar[(clinvar$VAR_ID %in% inter),] %>% arrange(VAR_ID)
@@ -715,8 +736,9 @@ var_plot_1000g <- function(pathogenic, frac) {
   sapply(pop.levels, function(pop) {
     keep <- c(front_cols,map$pop)==pop
     if (frac) {
-      temp <- (colSums(ACMG.data[!recessive,keep])>0) + 
-              (colSums(ACMG.data[ recessive,keep])>1)
+      temp <- colSums(ACMG.data[!recessive,keep])>0
+      if (sum(recessive)!=0)
+         temp <- temp + (colSums(ACMG.data[ recessive,keep])>1)
     } else {
       #Counts the number of non-reference sites in a gene
       temp <- colSums(ACMG.data[,keep]>0)
@@ -738,7 +760,7 @@ var_plot_1000g <- function(pathogenic, frac) {
 var_plot_exac <- function(dataset, pathogenic, frac) {
   ACMG.data <- parse(text=paste0(ifelse(pathogenic, "merged_", "ACMG."), tolower(dataset))) %>% eval
   if (pathogenic){
-    KP <- sapply(ACMG.data$CLNSIG, function(x) 5 %in% x) 
+    KP <- sapply(ACMG.data$CLNSIG, function(x) (5 %in% x) | ('Pathogenic' %in% x))
     KP_only <- c("RET","PRKAG2","MYH7","TNNI3","TPM1","MYL3","CACNA1S",
       "DSP","MYL2","APOB","PCSK9","RYR1","RYR2","SDHAF2","ACTC1")
     ACMG.data <- ACMG.data[!((ACMG.data$GENE %in% KP_only) & (!KP)),]
@@ -746,7 +768,8 @@ var_plot_exac <- function(dataset, pathogenic, frac) {
   recessive <- ACMG.data$GENE %in% c("MUTYH","ATP7B")
   exac_prob <- ACMG.data[,sprintf("AF_%s_%s", toupper(dataset), super.levels)]
   exac_final <- 1-(1-exac_prob)^2
-  exac_final[recessive,] <- (exac_prob[recessive,])^2
+  if (sum(recessive!=0))
+    exac_final[recessive,] <- (exac_prob[recessive,])^2
   if (frac) {
     exac_values <- data.frame(1-apply(1-exac_final, 2, prod, na.rm = T), super.levels)
   } else {
@@ -825,21 +848,6 @@ var_plot_exac("gnomAD", pathogenic = F, frac = F)
 #var_plot_exac("ExAC", pathogenic = F, frac = F)
 ```
 <br />
-
-<!--
-\newpage
-## Pathogenic Non-Reference Sites
-
-#### For 1000 Genomes and gnomAD/ExAC
-This is the same procedure as above, but performed only on the subset of variants that are pathogenic. 
-
-```{r pathogenic_var_plot, fig.height = 4, include = F}
-var_plot_1000g(pathogenic = T, frac = F)
-var_plot_exac("gnomAD", pathogenic = T, frac = F)
-#var_plot_exac("ExAC", pathogenic = T, frac = F)
-```
-<br />
---> 
 
 \newpage
 ## Fraction of Individuals with Pathogenic Sites
@@ -1617,6 +1625,24 @@ no_no <- grepl("orf",x) | grepl("LOC",x) | grepl("LINC",x) | grepl("MIR",x) |
 x[!no_no][1:110] -> random
 ```
 
+```{r}
+  
+  #split_all <- strsplit(input$INFO,";")
+  #split_info <- function(name) {
+  #  sapply(split_all, function(entry) {
+  #    entry[grep(name,entry)]
+  #  }) %>% strsplit("=") %>% sapply(function(x) x[2]) %>% strsplit(",")
+  #}
+  #input$CLNALLE <- split_info("CLNALLE=") %>% sapply(as.integer)
+  #input$CLNSIG <- split_info("CLNSIG=")
+  #input$CLNDBN <- split_info("CLNDBN=")
+  #if (has.clnrevstat)
+  #  input$CLNREVSTAT <- split_info("CLNREVSTAT=")
+  #if (has.clndsdb)
+  #  input$CLNDSDB <- split_info("CLNDSDB=")
+  #if (has.clndsdbid)
+  #  input$CLNDSDBID <- split_info("CLNDSDBID=")
+```
 
 
 
