@@ -24,26 +24,28 @@ library(tibble)
 
 # load allele frequencies and other info
 #setwd("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Penetrance_App")
-super.levels <- c("AFR", "AMR", "ASJ", "EAS", "FIN", "NFE", "OTH","SAS")
+super.levels <- c("AFR", "AMR", "ASJ", "EAS", "FIN", "NFE", "OTH","SAS","GNOMAD")
 freq_gnomad.calc.gene <- readRDS(file = "freq_gnomad.calc.gene.RDS")
 
 sample_size <- c(12020, 17210, 5076, 9435, 12897, 63369, 15391, 3234, 138632) %>% 
-  setNames(c("AFR", "AMR", "ASJ","EAS", "FIN", "NFE", "SAS", "OTH", "GNOMAD"))
+  setNames(super.levels)
 
 helpmsg <- 'Click "Make Plots" to generate/refresh figures (make take up to 5 seconds).'
 
 # Read in the given .csv
 DF <- read.csv(file = "Cardiac_Literature_Prevalence_Estimates.csv", 
-               header = TRUE, stringsAsFactors = F, na.strings = "NA")
+               header = TRUE, stringsAsFactors = F, na.strings = "NA") %>% 
+        select(Evaluate, Abbreviation, Short_Name, 
+               Prevalence, Prev_Lower_Bound, Prev_Upper_Bound, Prev_Confidence, 
+               CAF, CAF_Lower_Bound, CAF_Upper_Bound, CAF_Confidence)
 abbrev <- DF$Short_Name
-
-DF <- DF %>% select(Evaluate, Abbreviation, Short_Name, 
-                    Inverse_Prevalence, Inv_Prev_Lower, Inv_Prev_Upper, Prev_Confidence, 
-                    Inverse_CAF, Inv_CAF_Lower, Inv_CAF_Upper, CAF_Confidence)
-
 
 sample_beta_dist <- function(shapes) {
     rbeta(n = 10^4, shape = shapes[1], shape2 = shapes[2])
+}
+
+eval_frac <- function(frac) {
+  eval(parse(text=as.character(frac)))
 }
 
 betaExpert <- function(best, lower, upper, p = 0.95) {
@@ -136,22 +138,22 @@ ui <- shinyUI(fluidPage(
       ),
       tabPanel("Heatmap", h2(),
         helpText(helpmsg),
-        actionButton("run1", " Make Plots", icon = icon("bar-chart"), styleclass = "success"),
-        h4(),
+        #actionButton("run1", " Make Plots", icon = icon("bar-chart"), styleclass = "success"),
+        #h4(),
         plotOutput("heatmap", height = "350px", width = "650px"),
         h2()
       ),
-      tabPanel("Density plot", h2(),
+      tabPanel("Density Plot", h2(),
         helpText(helpmsg), 
-        actionButton("run2", " Make Plots", icon = icon("bar-chart"), styleclass = "success"),
-        h4(),
+        #actionButton("run2", " Make Plots", icon = icon("bar-chart"), styleclass = "success"),
+        #h4(),
         plotOutput("densityplot", height = "800px", width = "800px"),
         h2()
       ),
       tabPanel("Barplot", h2(),
         helpText(helpmsg), 
-        actionButton("run3", " Make Plots", icon = icon("bar-chart"), styleclass = "success"),
-        h4(),
+        #actionButton("run3", " Make Plots", icon = icon("bar-chart"), styleclass = "success"),
+        #h4(),
         plotOutput("barplot", height = "600px", width = "800px"),
         h2()
       )
@@ -185,7 +187,7 @@ server <- shinyServer(function(input, output, session) {
                     readOnly = FALSE, stretchH = "all")
   })
   
-  observeEvent(input$run | input$run1 | input$run2 | input$run3, {
+  observeEvent(input$run, { #| input$run1 | input$run2 | input$run3
     
     # Set Parameters
     finalDF <- isolate(values[["DF"]])
@@ -207,14 +209,18 @@ server <- shinyServer(function(input, output, session) {
     }) %>% setNames(names(sample_size))
     
     sample.prev <- sapply(1:nrow(useDF), function(i) {
-      betaExpert(best = 1/useDF$Inverse_Prevalence[i], lower = 1/useDF$Inv_Prev_Lower[i], 
-                 upper = 1/useDF$Inv_Prev_Upper[i], p = useDF$Prev_Confidence[i]) %>% 
+      betaExpert(best = eval_frac(useDF$Prevalence[i]), 
+                 lower = eval_frac(useDF$Prev_Lower_Bound[i]), 
+                 upper = eval_frac(useDF$Prev_Upper_Bound[i]), 
+                 p = useDF$Prev_Confidence[i]) %>% 
         sample_beta_dist() 
     }) 
       
     sample.CAF <- sapply(1:nrow(useDF), function(i) {
-      betaExpert(best = 1/useDF$Inverse_CAF[i], lower = 1/useDF$Inv_CAF_Lower[i], 
-                 upper = 1/useDF$Inv_CAF_Upper[i], p = useDF$CAF_Confidence[i]) %>% 
+      betaExpert(best = eval_frac(useDF$CAF[i]), 
+                 lower = eval_frac(useDF$CAF_Lower_Bound[i]), 
+                 upper = eval_frac(useDF$CAF_Upper_Bound[i]), 
+                 p = useDF$CAF_Confidence[i]) %>% 
         sample_beta_dist()
     }) 
     
