@@ -1,7 +1,7 @@
 ---
 title: "Cardiac ACMG-ClinVar Penetrance Estimation"
 author: "James Diao, under the supervision of Arjun Manrai"
-date: "June 26, 2017"
+date: "June 27, 2017"
 output:
   pdf_document:
     number_sections: yes
@@ -19,13 +19,13 @@ geometry: margin=1in
 knitr::opts_knit$set(root.dir = "../");
 # change echo = T for code-folding in HTML document
 knitr::opts_chunk$set(echo = F, eval = T, cache = T, warning = F, message = F)
-rm_rs1805124 <- TRUE # VAR_ID=="3_38645420_T_C"
+rm_rs1805124 <- FALSE # VAR_ID=="3_38645420_T_C"
 ```
 
 ```{r testing, eval = F}
 setwd("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance")
-#save.image("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Cardiac_Environ_2017-06-23.RData")
-load("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Cardiac_Environ_2017-06-23.RData")
+#save.image("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Cardiac_Environ_2017-06-29.RData")
+#load("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Cardiac_Environ_2017-06-29.RData")
 ```
 
 ```{r packages, include = F, cache = F}
@@ -356,12 +356,12 @@ import_file_1000g <- function(gene) {
 
 if (skip_processing) {
   #saveRDS(ACMG.1000g, file = "ACMG_Penetrance/ACMG_1000G.rds")
-  ACMG.1000g <- readRDS(file = "ACMG_Penetrance/ACMG_1000G.rds")
+  ACMG.1000g <- readRDS(file = "ACMG_Penetrance/cardiac_ACMG_1000G.rds")
 } else {
   # Import 1000G data for all ACMG
   ACMG.1000g <- NULL
   header <- c("CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT", as.character(map$sample))
-  for (gene in ACMG.panel) {
+  for (gene in cardiac.panel) {
     #print(sprintf("[%d/%d] %s",which(gene==ACMG.panel),length(ACMG.panel),gene))
     ACMG.1000g <- rbind(ACMG.1000g,import_file_1000g(gene))
   }
@@ -489,6 +489,19 @@ if (!("AF_1000G_AFR" %in% colnames(ACMG.1000g))) {
            AF_1000G_AFR, AF_1000G_AMR, AF_1000G_EAS, AF_1000G_EUR, AF_1000G_SAS, everything())
   rm(pop_af)
 }
+
+#if (FALSE & !("AF_1000G_ACB" %in% colnames(ACMG.1000g))) {
+#  front_cols <- 1:(grep("HG00096",colnames(ACMG.1000g))-1)
+#  sapply(pop.levels, function(pop){
+#    keep <- map$pop == pop
+#    (ACMG.1000g[,length(front_cols)+which(keep)] %>% rowSums)/(2*sum(keep))
+#  }) -> pop_af
+#  colnames(pop_af) <- sprintf("AF_1000G_%s",pop.levels)
+#  ACMG.1000g <- data.frame(ACMG.1000g, pop_af) %>% 
+#    select(GENE, AF_1000G, VAR_ID, CHROM, POS, ID, REF, ALT,
+#           contains("AF_1000G"),everything())
+#  rm(pop_af)
+#}
 ```
 <br />
 
@@ -780,22 +793,24 @@ var_plot_exac("gnomAD", pathogenic = T, frac = T)
 ## Common Pathogenic Variants by Ancestry
 
 ```{r variants_by_ethnicity, fig.height = 4} 
-### 1000 Genomes
+### 1000 Genomes Overall
+super.levels <- c("AFR", "AMR", "EAS", "EUR", "SAS")
 merged_1000g %>% select(contains("AF_1000G_")) -> af_1000g_by_ancestry
 rownames(af_1000g_by_ancestry) <- merged_1000g$VAR_ID
-colnames(af_1000g_by_ancestry) <- c("AFR","AMR","EAS","EUR","SAS")
+#af_1000g_by_ancestry <- af_1000g_by_ancestry[,-c(1:5)] 
+colnames(af_1000g_by_ancestry) <- super.levels #pop.levels
 ord <- order(apply(af_1000g_by_ancestry,1,max), decreasing = T)[1:8]
 ranked_id <- row.names(af_1000g_by_ancestry)[ord]
 ranked_var <- data.frame(Var_ID = factor(ranked_id, levels = ranked_id), 
     af_1000g_by_ancestry[ord,]) %>% gather(Ancestry, Subdivided_Allele_Frequencies, -Var_ID)
 ggplot(ranked_var, aes(x = Var_ID, y = Subdivided_Allele_Frequencies, fill = Ancestry)) +
     geom_bar(stat='identity', color = 'black', width = 0.7) + 
-    ggtitle("Max-Population Variants in 1000 Genomes, No Conflicts") + coord_flip()
+    ggtitle("Max-Population Variants in 1000G, No Conflicts") + coord_flip()
 
 ### gnomAD
-af_gnomad_by_ancestry <- merged_gnomad[,sprintf("AF_GNOMAD_%s",
-                            c("AFR","AMR","ASJ","EAS","FIN","NFE","SAS","OTH"))]
-colnames(af_gnomad_by_ancestry) <- c("AFR","AMR","ASJ","EAS","FIN","NFE","SAS","OTH")
+super.levels <- c("AFR", "AMR", "ASJ", "EAS", "FIN","NFE", "SAS","OTH")
+af_gnomad_by_ancestry <- merged_gnomad[,sprintf("AF_GNOMAD_%s",super.levels)]
+colnames(af_gnomad_by_ancestry) <- super.levels
 ord <- order(apply(af_gnomad_by_ancestry,1,max), decreasing = T)[1:8]
 ranked_id <- merged_gnomad$VAR_ID[ord]
 ranked_var <- data.frame(Var_ID = factor(ranked_id, levels = ranked_id), 
@@ -994,27 +1009,25 @@ sample_beta <- function(freq, n, trials) {
       setNames(1:trials)
   )
   colnames(out) <- names(freq)
+  rownames(out) <- NULL
   return(out)
 }
-sample.freqs <- lapply(1:length(sample_size$Cohort_GNOMAD), function(x) {
-  subset <- names(sample_size$Cohort_GNOMAD)[x]
-  if (subset=='GNOMAD') {
-    col <- 'AF_GNOMAD'
-  } else{
-    col <- sprintf("AF_GNOMAD_%s",subset)
-  }
-  out <- sample_beta(freq = named.freqs[,col], n = 2*sample_size$Cohort_GNOMAD[x])
-  colnames(out) <- abbrev
-  return(out)
-}) %>% setNames(names(sample_size$Cohort_GNOMAD))
-sample.prev <- sample_beta(freq = prev_obs/prev_n %>% setNames(abbrev), n = prev_n)
-sample.CAF <- sample_beta(freq = caf_obs/caf_n %>% setNames(abbrev), n = caf_n)
-sample.penetrance <- lapply(sample.freqs, function(freqs) {
-  (sample.prev * sample.CAF / freqs) 
-})
-cred_intervals <- sapply(sample.penetrance, function(set){
-  apply(set, 2, function(col) quantile(col, 0.95)) %>% pmin(1)
-})
+
+  sample.freqs <- lapply(1:length(sample_size$Cohort_GNOMAD), function(x) {
+    subset <- names(sample_size$Cohort_GNOMAD)[x]
+    col <- ifelse(subset=='GNOMAD', 'AF_GNOMAD', sprintf("AF_GNOMAD_%s",subset))
+    out <- sample_beta(freq = named.freqs[,col], n = 2*sample_size$Cohort_GNOMAD[x])
+    colnames(out) <- abbrev
+    rownames(out) <- NULL
+    return(out)
+  }) %>% setNames(names(sample_size$Cohort_GNOMAD))
+  sample.prev <- sample_beta(freq = prev_obs/prev_n %>% setNames(abbrev), n = prev_n)
+  sample.CAF <- sample_beta(freq = caf_obs/caf_n %>% setNames(abbrev), n = caf_n)
+  sample.penetrance <- lapply(sample.freqs, function(freqs) {
+    (sample.prev * sample.CAF / freqs) %>% pmin(1)
+  })
+  #save(sample.prev, sample.CAF, sample.freqs, sample.penetrance, 
+  #     file = "Supplementary_Files/Processed_Files/cardiac_parameter_samples_1M.RData")
 
 #plot(sample.freqs$GNOMAD[,order(apply(sample.freqs$GNOMAD,2,median))] %>% 
 #  as.data.frame %>% gather(key = Disease, value = Frequency) %>%
@@ -1023,64 +1036,111 @@ cred_intervals <- sapply(sample.penetrance, function(set){
 #  ggtitle('Disease Allele Frequency') + ylab('Density')
 #)
 
-y <- data.frame(Ancestry = rep(names(sample.freqs), each = nrow(sample.freqs[[1]])),
-                do.call('rbind', sample.freqs))
-plot(y %>% gather(key = Disease, value = Frequency, -Ancestry) %>%
+cred_intervals <- sapply(sample.penetrance, function(set){
+  apply(set, 2, function(col) quantile(col, 0.95)) %>% pmin(1)
+})
+
+#apply(cred_intervals, 1, function(row) {
+#  max(row)-min(row)
+#})
+  
+plot(
+  data.frame(Ancestry = rep(names(sample.freqs), each = nrow(sample.freqs[[1]])),
+                do.call('rbind', sample.freqs)
+                ) %>% 
+  gather(key = Disease, value = Frequency, -Ancestry) %>%
   filter(Ancestry != 'GNOMAD') %>% 
-  ggplot(aes(Frequency, color = Ancestry, fill = Ancestry)) + geom_density(alpha = 0.1) +
-  theme(axis.text.x = element_text(angle = 30, hjust = 1)) + 
+  ggplot(aes(Frequency, color = Ancestry, fill = Ancestry)) + 
+  geom_density(alpha = 0.1, adjust = 2) +
   facet_wrap(~Disease, nrow = 6) + 
-  ggtitle('Disease Allele Frequency') + ylab('Density')
+  ggtitle('Disease Allele Frequency Posterior Distributions') + ylab('Density')
+)
+```
+
+```{r penetrance_plots_1b, fig.width = 8, fig.height = 10, cache = F}
+plot(
+  data.frame(Ancestry = rep(names(sample.penetrance), each = nrow(sample.penetrance[[1]])),
+                do.call('rbind', sample.penetrance)
+                ) %>% 
+  gather(key = Disease, value = Frequency, -Ancestry) %>%
+  filter(Ancestry != 'GNOMAD') %>% 
+  ggplot(aes(Frequency, color = Ancestry, fill = Ancestry)) + 
+  geom_density(alpha = 0.1, adjust = 2) +
+  facet_wrap(~Disease, nrow = 6, scales = 'free_y') + 
+  ggtitle('Penetrance Posterior Distributions') + ylab('Density')
 )
 ```
 
 ```{r penetrance_plots_2, fig.width = 8, fig.height = 4.4, cache = F}
 plot(sample.prev[,order(apply(sample.prev,2,median))] %>% 
   as.data.frame %>% gather(key = Disease, value = Prevalence) %>%
-  ggplot(aes(Prevalence, color = Disease, fill = Disease)) + geom_density(alpha = 0.1) + 
-  theme(axis.text.x = element_text(angle = 30, hjust = 1)) + 
-  ggtitle('Disease Prevalence') + ylab('Density')
+  ggplot(aes(Prevalence, color = Disease, fill = Disease)) + 
+  geom_density(alpha = 0.1, adjust = 2) +
+  ggtitle('Disease Prevalence Posterior Distributions') + ylab('Density')
 )
 
 plot(sample.CAF[,order(apply(sample.CAF,2,median))] %>% 
   as.data.frame %>% gather(key = Disease, value = CAF) %>%
-  ggplot(aes(CAF, color = Disease, fill = Disease)) + geom_density(alpha = 0.1) + 
-  theme(axis.text.x = element_text(angle = 30, hjust = 1)) + 
-  ggtitle('Case Allele Frequency') + ylab('Density') + xlab('Case Allele Frequency')
+  ggplot(aes(CAF, color = Disease, fill = Disease)) + 
+  geom_density(alpha = 0.1, adjust = 2) +
+  ggtitle('Case Allele Frequency Posterior Distributions') + ylab('Density') + xlab('Case Allele Frequency')
 )
 
-plot(sample.penetrance$GNOMAD[,order(apply(sample.penetrance$GNOMAD,2,median))] %>% 
-  as.data.frame %>% gather(key = Disease, value = CAF) %>%
-  ggplot(aes(CAF, color = Disease, fill = Disease)) + geom_density(alpha = 0.1) + 
-  theme(axis.text.x = element_text(angle = 30, hjust = 1)) + 
-  ggtitle('Penetrance') + ylab('Density') + xlab('Penetrance')
+#plot(sample.penetrance$GNOMAD[,order(apply(sample.penetrance$GNOMAD,2,median))] %>% 
+#  as.data.frame %>% gather(key = Disease, value = CAF) %>%
+#  ggplot(aes(CAF, color = Disease, fill = Disease)) + geom_density(alpha = 0.1) + 
+#  theme(axis.text.x = element_text(angle = 30, hjust = 1)) + 
+#  ggtitle('Penetrance') + ylab('Density') + xlab('Penetrance')
+#)
+
+col_label <- rep(1:length(abbrev), each = nrow(sample.prev))
+penetrance <- data.frame(Disease = rep(abbrev, each = 5),
+                     sapply(sample.penetrance, c) %>% 
+                       apply(2, function(col) {
+                          sapply(1:length(abbrev), function(x) {
+                            quantile(col[col_label == x], c(0.025, 0.025, 0.5, 0.975, 0.975))
+                          })
+                       }) 
+               ) %>% gather(key = Ancestry, value = Penetrance, -Disease) %>%
+               mutate(Penetrance = pmin(1,Penetrance))
+#5%-95% confidence interval boxplots
+plot(penetrance %>% sample_n(min(nrow(penetrance),100000)) %>% filter(Ancestry != 'GNOMAD') %>% 
+  ggplot(aes(x = Disease, y = Penetrance, fill = Ancestry)) +
+  geom_boxplot(outlier.alpha = 0) + coord_flip() + 
+  ggtitle("95% Credible Intervals for Penetrance Posterior Distributions") + ylim(0,1)
 )
 
-sample.penetrance <- data.frame(Disease = rep(abbrev, each = nrow(sample.prev)),
-                           sapply(sample.penetrance, c)) %>% 
-                        gather(key = Ancestry, value = Penetrance, -Disease) %>%
-                        mutate(Penetrance = pmin(1,Penetrance))
+if (FALSE) { # True Boxplots
+  penetrance <- data.frame(Disease = rep(abbrev, each = nrow(sample.prev)),
+                         sapply(sample.penetrance, c)) %>% 
+                      gather(key = Ancestry, value = Penetrance, -Disease) %>%
+                      mutate(Penetrance = pmin(1,Penetrance))
 
-plot(sample.penetrance %>% sample_n(100000) %>% filter(Ancestry == 'GNOMAD') %>% 
-  ggplot(aes(x = Disease, y=Penetrance)) +
-  geom_boxplot(outlier.alpha=0.1) + coord_flip() + 
-  ggtitle(sprintf("Boxplot of Penetrance Distribution (%s)", dataset)) + ylim(0,1)
-)
-  
-plot(sample.penetrance %>% sample_n(100000) %>% filter(Ancestry != 'GNOMAD') %>% 
-  ggplot(aes(x = Disease, y=Penetrance, fill = Ancestry)) +
-  geom_boxplot(outlier.alpha=0.1) + coord_flip() + 
-  ggtitle(sprintf("Boxplot of Penetrance Distribution (%s)", dataset)) + ylim(0,1)
-)
+  plot(penetrance %>% sample_n(100000) %>% filter(Ancestry == 'GNOMAD') %>% 
+    ggplot(aes(x = Disease, y = Penetrance)) +
+  geom_density(alpha = 0.1, adjust = 2) + coord_flip() + 
+    ggtitle(sprintf("Boxplot of Penetrance Posterior Distribution (%s)", dataset)) + ylim(0,1)
+  )
+    
+  plot(penetrance %>% sample_n(100000) %>% filter(Ancestry != 'GNOMAD') %>% 
+    ggplot(aes(x = Disease, y = Penetrance, fill = Ancestry)) +
+    geom_boxplot(outlier.alpha = 0.1) + coord_flip() + 
+    ggtitle(sprintf("Boxplot of Penetrance Posterior Distribution (%s)", dataset)) + ylim(0,1)
+  )
+}
+
+
+
+
 
 penetrance_data <- data.frame(Disease = rep(rownames(cred_intervals), times = ncol(cred_intervals)),
-                              cred_intervals %>% as.data.frame %>% gather(Subset))
+                              cred_intervals %>% as.data.frame %>% gather(key = Subset, value = Penetrance))
 penetrance_data$Subset <- penetrance_data$Subset %>% 
                             replace(penetrance_data$Subset == 'GNOMAD','TOTAL')
 
 plot(ggplot(aes(x=Disease, y = Subset), data = penetrance_data) + coord_flip() + 
-  geom_tile(aes(fill = value), color = 'white') + xlab("Disease") + ylab("Ancestry") 
-  + scale_fill_gradient(low='white',high = 'darkblue', na.value = "grey50",
+  geom_tile(aes(fill = Penetrance), color = 'white') + xlab("Disease") + ylab("Ancestry") +
+  scale_fill_gradient(low='white',high = 'darkblue', na.value = "grey50",
     breaks=c(0,0.25,0.5,0.75,1), labels=c("0","0.25","0.50","0.75","1.00"), limits =c(0,1)) + 
   ggtitle("95% Upper Penetrance Bound by Ancestry") + 
   theme_minimal() + theme(axis.ticks = element_blank()) + 
@@ -1090,7 +1150,6 @@ plot(ggplot(aes(x=Disease, y = Subset), data = penetrance_data) + coord_flip() +
            x=c(0.5,length(abbrev)+0.5), 
            xend = c(0.5,length(abbrev)+0.5))
 )
-
 ```
 
 
