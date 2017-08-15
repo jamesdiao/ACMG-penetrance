@@ -246,7 +246,7 @@ download_1000g <- function(gene, download) {
     command <- paste("tabix -h ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.%s.",
                      "phase3_%s.20130502.genotypes.vcf.gz %s:%s-%s > %s_genotypes.vcf", sep = "")
     sprintf(command, UCSC$chrom, version, chrom.num, UCSC$start, UCSC$end, gene) %>% system
-    Sys.sleep(2)
+    #Sys.sleep(2)
     # Checks whether the file exists and has non-zero size
     exists <- grepl(paste(gene,"_genotypes.vcf",sep =""), system("ls", intern = T)) %>% sum > 0
     file.size <- strsplit(paste("stat ","_genotypes.vcf", sep = gene) %>% 
@@ -835,7 +835,7 @@ In this case, we can define the following probabilities:
 3. Case Allele Frequency (CAF) = $P(V_x|D_x)$  
 4. Penetrance = $P(D_x|V_x)$  
 
-By Bayes' Rule, the penetrance of a variant related to disease $x$ may be defined as: $$P(D_x|V_x) = \frac{P(D_x)*P(V_x|D_x)}{P(V_x)} = \frac{(Prevalence)(Population \; Allele \; Frequency)}{(Case \; Allele \; Frequency)}$$
+By Bayes' Rule, the penetrance of a variant related to disease $x$ may be defined as: $$P(D_x|V_x) = \frac{P(D_x)*P(V_x|D_x)}{P(V_x)} = \frac{(Prevalence)(Case \; Allele \; Frequency)}{(Population \; Allele \; Frequency)}$$
 
 To compute penetrance estimates for each of the diseases related to the ACMG-59 genes, we will use the prevalence data we collected into `Literature_Prevalence_Estimates.csv`, allele frequency data from 1000 Genomes/ExAC/gnomAD, and a broad range of values for case allele frequency.   
 
@@ -1021,27 +1021,20 @@ sample_beta <- function(freq, n, trials) {
     rownames(out) <- NULL
     return(out)
   }) %>% setNames(names(sample_size$Cohort_GNOMAD))
-  sample.prev <- sample_beta(freq = prev_obs/prev_n %>% setNames(abbrev), n = prev_n)
-  sample.CAF <- sample_beta(freq = caf_obs/caf_n %>% setNames(abbrev), n = caf_n)
+  max_prev_n <- prev_n #quantile(prev_n, 0.5)
+  max_caf_n <- caf_n #quantile(caf_n, 0.5)
+  sample.prev <- sample_beta(freq = prev_obs/prev_n %>% setNames(abbrev), n = pmin(prev_n, max_prev_n))
+  sample.CAF <- sample_beta(freq = caf_obs/caf_n %>% setNames(abbrev), n = pmin(caf_n, max_caf_n))
   sample.penetrance <- lapply(sample.freqs, function(freqs) {
     (sample.prev * sample.CAF / freqs) %>% pmin(1)
   })
-  #save(sample.prev, sample.CAF, sample.freqs, sample.penetrance, 
-  #     file = "Supplementary_Files/Processed_Files/cardiac_parameter_samples_1M.RData")
-
-#plot(sample.freqs$GNOMAD[,order(apply(sample.freqs$GNOMAD,2,median))] %>% 
-#  as.data.frame %>% gather(key = Disease, value = Frequency) %>%
-#  ggplot(aes(Frequency, color = Disease, fill = Disease)) + geom_density(alpha = 0.1) +
-#  theme(axis.text.x = element_text(angle = 30, hjust = 1)) + 
-#  ggtitle('Disease Allele Frequency') + ylab('Density')
-#)
 
 cred_intervals <- sapply(sample.penetrance, function(set){
   apply(set, 2, function(col) quantile(col, 0.95)) %>% pmin(1)
 })
-
+#Ranges
 #apply(cred_intervals, 1, function(row) {
-#  max(row)-min(row)
+#  max(row)-min(row) #/
 #})
   
 plot(
@@ -1072,17 +1065,18 @@ plot(
 ```
 
 ```{r penetrance_plots_2, fig.width = 8, fig.height = 4.4, cache = F}
-plot(sample.prev[,order(apply(sample.prev,2,median))] %>% 
+plot(sample.prev %>% 
   as.data.frame %>% gather(key = Disease, value = Prevalence) %>%
   ggplot(aes(Prevalence, color = Disease, fill = Disease)) + 
-  geom_density(alpha = 0.1, adjust = 2) +
+  geom_density(alpha = 0.1, adjust = 2) + 
+  coord_cartesian(xlim=c(0, min(1,1.5*max(apply(sample.prev, 2, mean))))) +
   ggtitle('Disease Prevalence Posterior Distributions') + ylab('Density')
 )
 
-plot(sample.CAF[,order(apply(sample.CAF,2,median))] %>% 
+plot(sample.CAF %>% 
   as.data.frame %>% gather(key = Disease, value = CAF) %>%
   ggplot(aes(CAF, color = Disease, fill = Disease)) + 
-  geom_density(alpha = 0.1, adjust = 2) +
+  geom_density(alpha = 0.1, adjust = 2) + xlim(0,1) + 
   ggtitle('Case Allele Frequency Posterior Distributions') + ylab('Density') + xlab('Case Allele Frequency')
 )
 

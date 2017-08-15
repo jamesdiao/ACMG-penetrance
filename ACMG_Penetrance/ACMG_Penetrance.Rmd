@@ -19,7 +19,7 @@ geometry: margin=1in
 knitr::opts_knit$set(root.dir = "../");
 # change echo = T for code-folding in HTML document
 knitr::opts_chunk$set(echo = F, eval = T, cache = T, warning = F, message = F)
-rm_rs1805124 <- TRUE # VAR_ID=="3_38645420_T_C"
+rm_rs1805124 <- FALSE # VAR_ID=="3_38645420_T_C"
 ```
 
 ```{r testing, eval = F}
@@ -115,6 +115,25 @@ scrape_MedGen <- function() {
 }
 medgen <- scrape_MedGen()
 
+HCM.panel <- c("ACTC1", "ACTN2", "CSRP3", "GLA", "LAMP2", "MYBPC3", "MYH7", 
+"MYL2", "MYL3", "MYOZ2", "NEXN", "PLN", "PRKAG2", "PTPN11", "RAF1", 
+"TNNC1", "TNNI3", "TNNT2", "TPM1", "TTR")
+
+random.panel <- c("TAF6", "IGFN1", "LGALS17A", "ATXN7", "COX6A1", "AA06", "PXYLP1", 
+                  "PPP1R8", "SNORD2", "EID3", "CCDC190", "TARM1", "ABCA11P", "PRICKLE3", 
+                  "NDP", "RIPK2", "SLC25A24", "ZNF580", "MTR", "RLN3", "FLJ30679", 
+                  "RPL30", "CDHR5", "SNX11", "EPHB3", "DAOA", "CFTR", "CDK15", 
+                  "LRRC37A3", "DGKZ", "DAP3", "WDR11", "POU4F3", "DTX2", "PIP4K2B", 
+                  "KCNMB4", "CCDC134", "MROH8", "ZDHHC11", "PCDHGC5", "KCNIP3", 
+                  "PRPSAP2", "EMID1", "SRFBP1", "NR4A1", "THSD7B", "ZNF681", "SNORD55", 
+                  "IREB2", "PPP1R3A", "RUVBL1", "CLEC2D", "HOXB9", "LZIC", "TYRO3", 
+                  "PNKD", "PLXNB3", "TOMM5", "NINL", "KCMF1", "LRFN2", "QTRT1", 
+                  "SLC18A2", "DUXAP8", "RPL23AP53", "OR8J1", "VTN", "FANCG", "INF2", 
+                  "NMNAT1", "RAPGEF1", "GH2", "HHIPL1", "ZC3H12C", "CCDC89", "CPSF4L", 
+                  "RUNX3", "NUDT9", "TPTE2P1", "KIF16B", "CLUAP1", "IL17B", "TFF3", 
+                  "SNAP23", "OCIAD1", "ZNF271P", "PPFIA2", "AIF1L", "ORAI1", "UCHL5", 
+                  "METTL7B", "ZNF362", "ENTPD6", "CCL19", "NYNRIN", "NANOS3", "CATSPER2P1", 
+                  "SPAG11B", "OTUD6A", "KLHL5")
 ```
 
 \newpage
@@ -338,8 +357,8 @@ download_1000g <- function(gene, download) {
     Sys.sleep(2)
     # Checks whether the file exists and has non-zero size
     exists <- grepl(paste(gene,"_genotypes.vcf",sep =""), system("ls", intern = T)) %>% sum > 0
-    file.size <- strsplit(paste("stat ","_genotypes.vcf", sep = gene) %>% 
-                            system(intern = T), " ")[[1]][8]
+    file.stat <- unlist(sprintf("stat %s_genotypes.vcf", gene) %>% system(intern = T) %>% strsplit(" "))
+    file.size <- file.stat[grep("Size",file.stat)+1] %>% as.integer
     success <- exists & file.size > 0
     }
   }
@@ -354,7 +373,7 @@ if (!skip_download & !skip_processing) {
                    dbname = 'hg19', host = 'genome-mysql.cse.ucsc.edu',
                    unix.sock = "/Applications/MAMP/tmp/mysql/mysql.sock")
   query <- function (input) { suppressWarnings(dbGetQuery(con, input)) }
-  download_output <- sapply(ACMG.panel, function(gene) download_1000g(gene, download = T)) %>% t
+  download_output <- sapply(random.panel, function(gene) download_1000g(gene, download = T)) %>% t
   print(download_output, quote = F)
   download_output <- download_output %>% 
     apply(2, unlist) %>% 
@@ -394,10 +413,10 @@ Multiple alleles are unnested into multiple counts. For example: (0|2) becomes 0
 
 
 ```{r import_1000g}
-import_file_1000g <- function(gene) {
+import_file_1000g <- function(gene, panel) {
   #for tracking: 
-  sprintf("%s [%s/%s]", gene, grep(gene, ACMG.panel), length(ACMG.panel)) %>% print(quote = F)
-  name <- paste("1000G",paste(gene,"genotypes.vcf", sep = "_"), sep = "/")
+  sprintf("%s [%s/%s]", gene, grep(gene, panel), length(panel)) %>% print(quote = F)
+  name <- paste("Random_1000G",paste(gene,"genotypes.vcf", sep = "_"), sep = "/")
   output <- read.table(paste(getwd(),name,sep="/"), stringsAsFactors = FALSE)
   #Add header
   names(output)[1:length(header)] <- header
@@ -450,16 +469,16 @@ if (skip_processing) {
   # Import 1000G data for all ACMG
   ACMG.1000g <- NULL
   header <- c("CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT", as.character(map$sample))
-  for (gene in ACMG.panel) {
+  for (gene in random.panel) {
     #print(sprintf("[%d/%d] %s",which(gene==ACMG.panel),length(ACMG.panel),gene))
-    ACMG.1000g <- rbind(ACMG.1000g,import_file_1000g(gene))
+    ACMG.1000g <- rbind(ACMG.1000g,import_file_1000g(gene, random.panel))
   }
   #Display and remove duplicates
   #ACMG.1000g[duplicated(ACMG.1000g$VAR_ID),1:8]
   ACMG.1000g <- ACMG.1000g[!duplicated(ACMG.1000g$VAR_ID),]
 }
 #write.csv(ACMG.1000g, file = "ACMG.1000G.csv", row.names = F, quote = F)
-#save(ACMG.1000g, file = "ACMG.1000G")
+#save(ACMG.1000g, file = "Random.1000G")
 cat(sprintf("Processed 1000 Genomes VCFs: %s x %s (selected rows/columns):", nrow(ACMG.1000g), ncol(ACMG.1000g)))
 ACMG.1000g[1:5,1:18] %>% select(-INFO, -QUAL, -FILTER, -FORMAT) %>% 
   format(scientific = F) %>% pander
@@ -477,7 +496,7 @@ African = AFR, Latino = AMR, European (Finnish + Non-Finnish) = EUR, East.Asian 
 
 ```{r import_exac}
 import_file_exac <- function(gene, dataset) {
-  file_name <- sprintf("%s/%s_%s.csv", dataset, dataset, gene)
+  file_name <- sprintf("HCM_%s/%s_%s.csv", dataset, dataset, gene)
   output <- read.csv(file_name, stringsAsFactors = FALSE)
   output$Number.of.Hemizygotes <- NULL #Inconsistently present column; removal allows row aggregation
   # Correcting for some alternate naming conventions
@@ -518,9 +537,9 @@ import_file_exac <- function(gene, dataset) {
 # Import ExAC data for all ACMG
 ACMG.exac <- NULL
 ACMG.gnomad <- NULL
-for (gene in ACMG.panel) {
+for (gene in HCM.panel) {
   #print(sprintf("[%d/%d] %s",which(gene==ACMG.panel),length(ACMG.panel),gene))
-  ACMG.exac <- rbind(ACMG.exac,import_file_exac(gene, "exac"))
+  #ACMG.exac <- rbind(ACMG.exac,import_file_exac(gene, "exac"))
   ACMG.gnomad <- rbind(ACMG.gnomad,import_file_exac(gene, "gnomad"))
 }
 #Display and remove duplicates
@@ -582,15 +601,17 @@ if (!("AF_1000G_AFR" %in% colnames(ACMG.1000g))) {
 ## Merge ClinVar with gnomAD, ExAC, and 1000 Genomes
 
 ```{r print_merge_details}
-collect <- clinvar$NOT_OMIM_INTERP #& clinvar$LMM_INTERP #& (clinvar$GOLD_STARS >= 2) 
+collect <- clinvar$pathogenic #clinvar$NOT_OMIM_INTERP #& clinvar$LMM_INTERP #& (clinvar$GOLD_STARS >= 2) 
 #INTERP means at least 1 (likely) pathogenic and no (likely) benign
+
+
 merge_clinvar_1000g <- function() {
   inter <- intersect(clinvar$VAR_ID[collect], ACMG.1000g$VAR_ID)
   clinvar_merged <- clinvar[(clinvar$VAR_ID %in% inter),] %>% arrange(VAR_ID)
   ACMG_merged <- ACMG.1000g[ACMG.1000g$VAR_ID %in% inter,] %>% arrange(VAR_ID)
   front_cols <- 1:(grep("HG00096",colnames(ACMG.1000g))-1)
   cbind(ACMG_merged[,c("GENE",sprintf("AF_1000G%s", c("",paste0("_",super.levels))))], 
-        clinvar_merged,ACMG_merged[,-front_cols])
+        clinvar_merged,ACMG_merged[,-front_cols]) %>% return()
 }
 merged_1000g <- merge_clinvar_1000g()
 
@@ -1625,8 +1646,7 @@ no_no <- grepl("orf",x) | grepl("LOC",x) | grepl("LINC",x) | grepl("MIR",x) |
 x[!no_no][1:110] -> random
 ```
 
-```{r}
-  
+```{r, eval = F, include = F}
   #split_all <- strsplit(input$INFO,";")
   #split_info <- function(name) {
   #  sapply(split_all, function(entry) {
@@ -1645,4 +1665,25 @@ x[!no_no][1:110] -> random
 ```
 
 
+```{r, eval = F, include = F}
+clinvar$pathogenic_no_conflicts <- clinvar$INTERP
+clinvar$pathogenic_incl_conflicts <- sapply(clinvar$CLNSIG, function(x) any(x %in% c(4,5)))
+
+input <- input %>%
+  rename(mc_pathogenic_incl_conflicts = pathogenic_incl_conflicts, 
+         mc_pathogenic_no_conflicts = pathogenic_no_conflicts) %>% 
+  unite(VAR_ID, chr, pos, ref, alt, remove = F)
+
+any_path <- intersect(clinvar$VAR_ID[clinvar$pathogenic_incl_conflicts], input$VAR_ID)
+unconf_path <- intersect(clinvar$VAR_ID[clinvar$pathogenic_no_conflicts], input$VAR_ID)
+output <- input %>% 
+            mutate(pathogenic_no_conflicts = VAR_ID %in% unconf_path) %>%
+            mutate(pathogenic_incl_conflicts = VAR_ID %in% any_path) %>%
+            select(chr = chr, pos = pos, ref = ref, alt = alt, rsID = rsID, 
+                   contains("pathogenic_"), #contains("HG"), contains("NA"))
+                     contains("Count"), contains("Number"))
+write.csv(output, file = "HCM_gnomAD_Variants_7_11.csv", row.names = F, quote = F)
+
+
+```
 

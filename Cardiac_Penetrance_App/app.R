@@ -1,6 +1,6 @@
 #title: "Cardiac ACMG-ClinVar Penetrance Shiny App"
 #author: "James Diao, under the supervision of Arjun Manrai"
-#date: "June 29, 2017"
+#date: "July 3, 2017"
 
 #rsconnect::deployApp('/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Cardiac_Penetrance_App')
 
@@ -26,77 +26,51 @@ library(tibble)
 #setwd("/Users/jamesdiao/Documents/Kohane_Lab/2017-ACMG-penetrance/Penetrance_App")
 super.levels <- c("AFR", "AMR", "ASJ", "EAS", "FIN", "NFE", "OTH","SAS","GNOMAD")
 freq_gnomad.calc.gene <- readRDS(file = "freq_gnomad.calc.gene.RDS")
-
 sample_size <- c(12020, 17210, 5076, 9435, 12897, 63369, 15391, 3234, 138632) %>% 
   setNames(super.levels)
-
-helpmsg <- 'Click "Make Plots" to generate/refresh figures (make take up to 5 seconds).'
+helpmsg <- 'Click "Make Plots" (in the Table tab) to generate/refresh figures (takes up to 5 seconds for 10,000 samples).'
 
 # Read in the given .csv
 DF <- read.csv(file = "Cardiac_Literature_Prevalence_Estimates.csv", 
                header = TRUE, stringsAsFactors = F, na.strings = "NA") %>% 
-        select(Evaluate, Abbreviation, Short_Name, 
-               Prevalence, Prev_Lower_Bound, Prev_Upper_Bound, Prev_Confidence, 
-               CAF, CAF_Lower_Bound, CAF_Upper_Bound, CAF_Confidence)
-abbrev <- DF$Short_Name
+        select(Phenotype, Prevalence, Prev_Lower, Prev_Upper, #Prev_CL, 
+               CAF, CAF_Lower, CAF_Upper) #, CAF_CL)
+abbrev <- DF$Phenotype
 
-sample_beta_dist <- function(shapes) {
-    rbeta(n = 10^4, shape = shapes[1], shape2 = shapes[2])
+sample_beta_dist <- function(shapes, trials) {
+    rbeta(n = trials, shape = shapes[1], shape2 = shapes[2])
 }
 
 eval_frac <- function(frac) {
-  eval(parse(text=as.character(frac)))
+  sapply(frac, function(f){
+    eval(parse(text=as.character(f)))
+  }) %>% setNames(NULL)
 }
 
 betaExpert <- function(best, lower, upper, p = 0.95) {
-  if (missing(best)) 
-    stop("'best' is missing")
-  if (missing(lower) & missing(upper)) 
-    stop("at least 'lower' or 'upper' must be specified")
-  if (!missing(lower)) 
-    if (lower > best) stop("'lower' cannot be greater than 'best'")
-  if (!missing(upper)) 
-    if (upper < best) stop("'upper' cannot be smaller than 'best'")
-  if (!missing(lower) & !missing(upper)) 
-    if (lower > upper) stop("'lower' cannot be greater than 'upper'")
-  f_mode <- function(x, mode, p, target) {
-    return(sum((qbeta(p = p, shape1 = x, shape2 = (x*(1-mode) + 2*mode - 1)/mode) - target)^2))
-  }
-  f_mode_zero <- function(x, p, target) {
-    return((qbeta(p = p, shape1 = 1, shape2 = x) - target)^2)
-  }
-  f_mode_one <- function(x, p, target) {
-    return((qbeta(p = p, shape1 = x, shape2 = 1) - target)^2)
-  }
-  f_mean <- function(x, mean, p, target) {
-    return(sum((qbeta(p = p, shape1 = x, shape2 = (x*(1-mean))/mean) - target)^2))
-  }
-  if (!missing(lower) & missing(upper)) {
-    target <- lower
-    p <- 1-p
-  }
-  else if (!missing(upper) & missing(lower)) {
-    target <- upper
-  }
-  else if (!missing(upper) & !missing(lower)) {
-    target <- c(lower, upper)
-    p <- c(0, p) + (1-p)/2
-  }
-  #method = mode
-  if (best == 0) {
-    a <- 1
-    b <- optimize(f_mode_zero, c(0, 1000), p = p, target = target)$minimum
-  }
-  else if (best == 1) {
-    a <- optimize(f_mode_one, c(0, 1000), p = p, target = target)$minimum
-    b <- 1
-  }
+  if (missing(best)) stop("The point estimate is missing")
+  if (missing(lower) | missing(upper)) stop("Both lower and upper bounds must be specified")
+  if (lower > best) stop("The lower bound cannot be greater than the point estimate")
+  if (upper < best) stop("The upper bound cannot be smaller than the point estimate")
+  if (lower > upper) stop("The lower bound cannot be greater than the upper bound")
+  target <- c(lower, upper)
+  p <- c(0, p) + (1-p)/2
+  a <- b <- 1
+  if (best == 0)
+    b <- optimize(function(x, p, target) {
+      return((qbeta(p = p, shape1 = 1, shape2 = x) - target)^2)
+    }, c(0, 1000), p = p, target = target)$minimum
+  else if (best == 1)
+    a <- optimize(function(x, p, target) {
+      return((qbeta(p = p, shape1 = x, shape2 = 1) - target)^2)
+    }, c(0, 1000), p = p, target = target)$minimum
   else {
-    a <- optimize(f_mode, c(0, 1000), mode = best, p = p, target = target)$minimum
+    a <- optimize(function(x, mode, p, target) {
+      return(sum((qbeta(p = p, shape1 = x, shape2 = (x*(1-mode) + 2*mode - 1)/mode) - target)^2))
+    }, c(0, 1000), mode = best, p = p, target = target)$minimum
     b <- (a * (1 - best) + 2 * best - 1)/best
   }
-  out <- c(alpha = a, beta = b)
-  return(out)
+  return(c(alpha = a, beta = b))
 }
 
 sample_beta_obs <- function(freq, n, trials) {
@@ -119,43 +93,51 @@ ui <- shinyUI(fluidPage(
   fluidPage(
     tabsetPanel(
       tabPanel("Table", h5(),
-        helpText("Double-click on the table to edit values. Uncheck boxes to remove from analysis."), h5(),
-        helpText('Move to the "Heatmap" or "Barplot" tabs to view figures.' ),
+        helpText("Double-click on the table to edit values.  
+        Move to the 'Heatmap', 'Density Plot' or 'Barplot' tabs to view figures."),
+        p('When editing values for prevalence or case allele frequency (CAF), you may change:'),
+        tags$ol(
+          tags$li('Point estimate (must be between both bounds)'),
+          tags$li('Lower bound'),
+          tags$li('Upper bound')
+        ),
         rHandsontableOutput("hot"),
         h2(),
         actionButton("run", " Make Plots", icon = icon("bar-chart"), styleclass = "success"),
         h2(), h2(), 
-        p('When editing values for prevalence or case allele frequency (CAF), you may change:'),
-        tags$ol(
-          tags$li('Point estimate'),
-          tags$li('Lower bound'),
-          tags$li('Upper bound'),
-          tags$li('Confidence Level (that the true value lies between these two bounds)')
-        ),
         p('A Beta distribution is fitted to these parameters, with the mode at the point estimate and 
-          x% of the density between the lower and upper bounds, with x determined by the confidence level. '),
-        h2(), em("James Diao, under the supervision of Dr. Arjun Manrai (29 June 2017)")
+          x% of the density between the lower and upper bounds, with x determined by the confidence level. 
+          The default value of x (95%) of may be modified in Options. Default table values are computed 
+          using quantiles from posterior distributions inferred from epidemiological studies. '),
+        conditionalPanel("input.plotparams",
+          plotOutput("prev_prior", height = "200px", width = "700px"),
+          plotOutput("CAF_prior", height = "200px", width = "700px")
+        ),
+        h2(), em("James Diao, under the supervision of Dr. Arjun Manrai (3 July 2017)")
       ),
       tabPanel("Heatmap", h2(),
         helpText(helpmsg),
-        #actionButton("run1", " Make Plots", icon = icon("bar-chart"), styleclass = "success"),
-        #h4(),
         plotOutput("heatmap", height = "350px", width = "650px"),
         h2()
       ),
       tabPanel("Density Plot", h2(),
-        helpText(helpmsg), 
-        #actionButton("run2", " Make Plots", icon = icon("bar-chart"), styleclass = "success"),
-        #h4(),
+        helpText(helpmsg),
         plotOutput("densityplot", height = "800px", width = "800px"),
         h2()
       ),
       tabPanel("Barplot", h2(),
         helpText(helpmsg), 
-        #actionButton("run3", " Make Plots", icon = icon("bar-chart"), styleclass = "success"),
-        #h4(),
         plotOutput("barplot", height = "600px", width = "800px"),
         h2()
+      ),
+      tabPanel("Options", h2(),
+        selectizeInput("samples", label = "Number of samples drawn from posterior distribution", choices = 10^c(3:7), 
+                       selected = 10^4, multiple = F),
+        sliderInput("prev_cf", "Confidence Level in Prevalence Bounds", 
+                    min = 0.05, max = 1, value = 0.95, step = 0.05),
+        sliderInput("CAF_cf", "Confidence Level in CAF Bounds", 
+                    min = 0.05, max = 1, value = 0.95, step = 0.05),
+        checkboxInput("plotparams", label = "Plot parameter distributions with table", value = FALSE, width = NULL)
       )
     )
   )
@@ -178,31 +160,109 @@ server <- shinyServer(function(input, output, session) {
         DF <- values[["DF"]]
     }
     values[["DF"]] <- DF
+    
+    if(input$plotparams==T) {
+      lapply(1:nrow(DF), function(i) {
+        betaExpert(best = eval_frac(DF$Prevalence[i]), 
+                   lower = eval_frac(DF$Prev_Lower[i]), 
+                   upper = eval_frac(DF$Prev_Upper[i]), 
+                   p = input$prev_cf #p = useDF$Prev_CL[i]
+        ) %>% as.list %>% setNames(c('shape1','shape2')) %>% return()
+        #"stat_function(fun = dbeta, args = y[[%s]], aes(color = abbrev[%s]), size = 1)"
+      }) -> y
+      
+      lapply(1:nrow(DF), function(i) {
+        betaExpert(best = eval_frac(DF$CAF[i]), 
+                   lower = eval_frac(DF$CAF_Lower[i]), 
+                   upper = eval_frac(DF$CAF_Upper[i]), 
+                   p = input$CAF_cf #p = useDF$CAF_CL[i]
+        ) %>% as.list %>% setNames(c('shape1','shape2')) %>% return()
+        #"stat_function(fun = dbeta, args = y[[%s]], aes(color = abbrev[%s]), size = 1)"
+      }) -> z
+      
+      alpha <- 0.2; n = 600; geom = 'area'
+      prev_prior <- ggplot(data.frame(x = c(0, min(1,1.5*sapply(y, function(i) (i$shape1-1)/(i$shape1+i$shape2-2)) %>% max))), aes(x = x)) +
+        stat_function(fun = dbeta, args = y[[1]], aes(color = abbrev[1], fill = abbrev[1]), geom = geom, alpha = alpha, n = n) + 
+        stat_function(fun = dbeta, args = y[[2]], aes(color = abbrev[2], fill = abbrev[2]), geom = geom, alpha = alpha, n = n) + 
+        stat_function(fun = dbeta, args = y[[3]], aes(color = abbrev[3], fill = abbrev[3]), geom = geom, alpha = alpha, n = n) + 
+        stat_function(fun = dbeta, args = y[[4]], aes(color = abbrev[4], fill = abbrev[4]), geom = geom, alpha = alpha, n = n) + 
+        stat_function(fun = dbeta, args = y[[5]], aes(color = abbrev[5], fill = abbrev[5]), geom = geom, alpha = alpha, n = n) + 
+        stat_function(fun = dbeta, args = y[[6]], aes(color = abbrev[6], fill = abbrev[6]), geom = geom, alpha = alpha, n = n) +
+        labs(color = "Disease", fill = "Disease") + ggtitle('Prevalence Distribution') + 
+        xlab('Prevalence') + ylab('Density') 
+      
+      CAF_prior <- ggplot(data.frame(x = c(0, 1)), aes(x = x)) +
+        stat_function(fun = dbeta, args = z[[1]], aes(color = abbrev[1], fill = abbrev[1]), geom = geom, alpha = alpha, n = n) + 
+        stat_function(fun = dbeta, args = z[[2]], aes(color = abbrev[2], fill = abbrev[2]), geom = geom, alpha = alpha, n = n) + 
+        stat_function(fun = dbeta, args = z[[3]], aes(color = abbrev[3], fill = abbrev[3]), geom = geom, alpha = alpha, n = n) + 
+        stat_function(fun = dbeta, args = z[[4]], aes(color = abbrev[4], fill = abbrev[4]), geom = geom, alpha = alpha, n = n) + 
+        stat_function(fun = dbeta, args = z[[5]], aes(color = abbrev[5], fill = abbrev[5]), geom = geom, alpha = alpha, n = n) + 
+        stat_function(fun = dbeta, args = z[[6]], aes(color = abbrev[6], fill = abbrev[6]), geom = geom, alpha = alpha, n = n) +
+        labs(color = "Disease", fill = "Disease") + ggtitle('CAF Distribution') + 
+        xlab('CAF') + ylab('Density')
+      
+      output$prev_prior <- renderPlot({ prev_prior })
+      output$CAF_prior <- renderPlot({ CAF_prior })
+    }
+    
   })
   
   output$hot <- renderRHandsontable({
     DF <- values[["DF"]]
-    if (!is.null(DF))
+    if (!is.null(DF)) {
       rhandsontable(DF, useTypes = TRUE, 
-                    readOnly = FALSE, stretchH = "all")
+         readOnly = FALSE, stretchH = "all") %>%
+        hot_validate_numeric(col = 2:7, min = 0, max = 1) %>% 
+        hot_cols(renderer = "function (instance, td, row, col, prop, value, cellProperties) {
+                 Handsontable.renderers.TextRenderer.apply(this, arguments);
+                 if (col > 1 && col < 4) {
+                 td.style.background = 'lavenderblush';
+                 } else if (col > 4) {
+                 td.style.background = 'aliceblue';
+                 } else if (col == 1) {
+                 td.style.background = 'mistyrose';
+                 } else if (col == 4) {
+                 td.style.background = 'lightcyan';
+                 }}")
+        #hot_col(col = c(5,9), format = "0%") %>% 
+        #hot_table(customBorders = list(
+          #list(
+          #  range = list(from = list(row = 0, col = 1),
+          #               to = list(row = 5, col = 3)),
+          #  top = list(width = 2, color = "black"),
+          #  bottom = list(width = 2, color = "black")), 
+          #list(
+          #  range = list(from = list(row = 0, col = 4),
+          #               to = list(row = 5, col = 6)),
+          #  top = list(width = 2, color = "black"),
+          #  left = list(width = 2, color = "black"),
+          #  bottom = list(width = 2, color = "black"),
+          #  right = list(width = 2, color = "black")),
+          #list(
+          #  range = list(from = list(row = 0, col = 0),
+          #               to = list(row = 5, col = 0)),
+          #  top = list(width = 2, color = "black"),
+          #  left = list(width = 2, color = "black"),
+          #  bottom = list(width = 2, color = "black"),
+          #  right = list(width = 2, color = "black"))
+          #))
+    }
   })
   
-  observeEvent(input$run, { #| input$run1 | input$run2 | input$run3
+  observeEvent(input$run, {
     
     # Set Parameters
-    finalDF <- isolate(values[["DF"]])
-    keep <- finalDF$Evaluate %>% as.logical
-    finalDF <- finalDF[keep,]
-    dataset <- 'gnomAD'
-    method <- 'Gene'
-    abbrev <- finalDF$Short_Name
+    useDF <- isolate(values[["DF"]])
+    keep <- rep(TRUE, nrow(useDF)) #finalDF$Evaluate %>% as.logical
+    useDF <- useDF[keep,]
+    abbrev <- useDF$Phenotype
     named.freqs <- freq_gnomad.calc.gene[keep,]
-    useDF <- finalDF %>% filter(Evaluate)
+    trials <- input$samples
     
     sample.freqs <- lapply(1:length(sample_size), function(x) {
       subset <- names(sample_size)[x]
       col <- ifelse(subset=='GNOMAD', 'AF_GNOMAD', sprintf("AF_GNOMAD_%s",subset))
-      out <- sample_beta_obs(freq = named.freqs[,col], n = 2*sample_size[x])
+      out <- sample_beta_obs(freq = named.freqs[,col], n = 2*sample_size[x], trials = trials)
       colnames(out) <- abbrev
       rownames(out) <- NULL
       return(out)
@@ -210,18 +270,20 @@ server <- shinyServer(function(input, output, session) {
     
     sample.prev <- sapply(1:nrow(useDF), function(i) {
       betaExpert(best = eval_frac(useDF$Prevalence[i]), 
-                 lower = eval_frac(useDF$Prev_Lower_Bound[i]), 
-                 upper = eval_frac(useDF$Prev_Upper_Bound[i]), 
-                 p = useDF$Prev_Confidence[i]) %>% 
-        sample_beta_dist() 
+                 lower = eval_frac(useDF$Prev_Lower[i]), 
+                 upper = eval_frac(useDF$Prev_Upper[i]), 
+                 p = input$prev_cf #p = useDF$Prev_CL[i]
+                 ) %>% 
+        sample_beta_dist(trials = trials) 
     }) 
       
     sample.CAF <- sapply(1:nrow(useDF), function(i) {
       betaExpert(best = eval_frac(useDF$CAF[i]), 
-                 lower = eval_frac(useDF$CAF_Lower_Bound[i]), 
-                 upper = eval_frac(useDF$CAF_Upper_Bound[i]), 
-                 p = useDF$CAF_Confidence[i]) %>% 
-        sample_beta_dist()
+                 lower = eval_frac(useDF$CAF_Lower[i]), 
+                 upper = eval_frac(useDF$CAF_Upper[i]), 
+                 p = input$CAF_cf #useDF$CAF_CL[i]
+                 ) %>% 
+        sample_beta_dist(trials = trials)
     }) 
     
     colnames(sample.prev) <- colnames(sample.CAF) <- abbrev
@@ -244,7 +306,6 @@ server <- shinyServer(function(input, output, session) {
       filter(Ancestry != 'GNOMAD') %>% 
       ggplot(aes(Frequency, color = Ancestry, fill = Ancestry)) + 
       geom_density(alpha = 0.3, adjust = 2) +
-      theme(axis.text.x = element_text(angle = 30, hjust = 1)) + 
       facet_wrap(~Disease, nrow = 6, scales = 'free_y') + 
       ggtitle('Penetrance Posterior Distributions') + ylab('Density')
     
@@ -288,7 +349,7 @@ server <- shinyServer(function(input, output, session) {
     #barplot <- ggplot(aes(x=Disease, y=Penetrance), data = penetrance_data) + 
     #       geom_boxplot(position = 'identity', coef = 0, na.rm = T) + 
     #       facet_wrap(~Subset, ncol = 2) + coord_flip() + xlab(NULL) + 
-    #       ggtitle(sprintf("Penetrance by Ancestry (%s)", dataset)) + 
+    #       ggtitle("Penetrance by Ancestry (gnomAD)") + 
     #       theme(axis.text.y=element_text(size=6), 
     #             axis.text.x = element_text(angle = -20, hjust = 0.4))
     #barplot <- ggplotly(barplot, height = 1200, width = 800)
@@ -305,7 +366,7 @@ server <- shinyServer(function(input, output, session) {
     #  z = penetrance_init[pos,][ord,] %>% as.matrix %>% signif(3), 
     #  type = "heatmap", height = 800, colorscale = colz
     #) %>% layout(autosize = T, margin = m, 
-    #  title = sprintf("%s Penetrance by Ancestry (%s)", position, dataset)) 
+    #  title = sprintf("%s Penetrance by Ancestry (gnomAD)", position)) 
     output$heatmap <- renderPlot({ heatmap })
     output$densityplot <- renderPlot({ densityplot })
     output$barplot <- renderPlot({ barplot })
